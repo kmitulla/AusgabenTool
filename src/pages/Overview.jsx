@@ -5,7 +5,7 @@ import { Pie, Bar } from 'react-chartjs-2';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { updateVacation, calculateDebts } from '../utils/db';
 import { useVacation } from '../contexts/VacationContext';
-import { Plus, Trash2, Edit3, TrendingUp, DollarSign, Calendar, BarChart3, PieChart, X, Eye, EyeOff, Users } from 'lucide-react';
+import { Plus, Trash2, Edit3, TrendingUp, DollarSign, Calendar, BarChart3, PieChart, X, Eye, EyeOff, Users, AlignLeft } from 'lucide-react';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
@@ -21,7 +21,7 @@ export default function Overview() {
   const [editKpi, setEditKpi] = useState(null);
   const [editChart, setEditChart] = useState(null);
   const [kpiForm, setKpiForm] = useState({ type: 'total', label: '', categories: [], currency: 'EUR', mergedCategories: [], persons: [] });
-  const [chartForm, setChartForm] = useState({ type: 'pie', label: '', categories: [], currency: 'EUR', showValues: true, mergedCategories: [], persons: [] });
+  const [chartForm, setChartForm] = useState({ type: 'pie', label: '', categories: [], currency: 'EUR', showValues: true, mergedCategories: [], persons: [], stackMode: 'category_person' });
   const [mergeInput, setMergeInput] = useState({ name: '', categories: [] });
 
   const rates = currentVacation?.settings?.exchangeRates || { EUR: 1 };
@@ -131,6 +131,62 @@ export default function Overview() {
     };
   };
 
+  const getStackedChartData = (chart) => {
+    const cur = chart.currency || displayCurrency;
+    const exps = getExpensesByCategories(chart.categories, chart.mergedCategories, []);
+    const sym = currencySymbols[cur] || cur;
+    const mode = chart.stackMode || 'category_person';
+    const filterPersons = chart.persons || [];
+
+    if (mode === 'category_person') {
+      // X-axis = categories, stacks = persons
+      const catSet = new Set();
+      const personSet = new Set();
+      const data = {};
+      exps.forEach(e => {
+        const cat = e.displayCategory || e.category || 'Sonstiges';
+        const person = e.paidBy || 'Unbekannt';
+        if (filterPersons.length > 0 && !filterPersons.includes(person)) return;
+        catSet.add(cat);
+        personSet.add(person);
+        if (!data[cat]) data[cat] = {};
+        data[cat][person] = (data[cat][person] || 0) + convertAmount(e.amount, e.exchangeRate, cur);
+      });
+      const labels = [...catSet];
+      const persons = [...personSet];
+      const datasets = persons.map((p, i) => ({
+        label: p,
+        data: labels.map(cat => Math.round((data[cat]?.[p] || 0) * 100) / 100),
+        backgroundColor: COLORS[i % COLORS.length],
+        borderRadius: 4,
+      }));
+      return { labels, datasets, sym };
+    } else {
+      // X-axis = persons, stacks = categories
+      const catSet = new Set();
+      const personSet = new Set();
+      const data = {};
+      exps.forEach(e => {
+        const cat = e.displayCategory || e.category || 'Sonstiges';
+        const person = e.paidBy || 'Unbekannt';
+        if (filterPersons.length > 0 && !filterPersons.includes(person)) return;
+        catSet.add(cat);
+        personSet.add(person);
+        if (!data[person]) data[person] = {};
+        data[person][cat] = (data[person][cat] || 0) + convertAmount(e.amount, e.exchangeRate, cur);
+      });
+      const labels = [...personSet];
+      const cats = [...catSet];
+      const datasets = cats.map((cat, i) => ({
+        label: cat,
+        data: labels.map(p => Math.round((data[p]?.[cat] || 0) * 100) / 100),
+        backgroundColor: COLORS[i % COLORS.length],
+        borderRadius: 4,
+      }));
+      return { labels, datasets, sym };
+    }
+  };
+
   const saveKpis = async (newKpis) => {
     await updateVacation(currentVacation.id, { kpis: newKpis });
     await refreshVacation();
@@ -153,7 +209,8 @@ export default function Overview() {
 
   const handleSaveChart = async () => {
     const item = { ...chartForm, id: editChart?.id || genId() };
-    if (!item.label) item.label = item.type === 'pie' ? 'Kreisdiagramm' : 'Balkendiagramm';
+    const typeLabels = { pie: 'Kreisdiagramm', column: 'Säulendiagramm', bar: 'Balkendiagramm', stacked_column: 'Gestapeltes Säulendiagramm', stacked_bar: 'Gestapeltes Balkendiagramm' };
+    if (!item.label) item.label = typeLabels[item.type] || 'Diagramm';
     const newCharts = editChart ? charts.map(c => c.id === editChart.id ? item : c) : [...charts, item];
     await saveCharts(newCharts);
     setShowChartModal(false);
@@ -287,20 +344,53 @@ export default function Overview() {
               )}
 
               {!isKpi && (
-                <div style={{ marginBottom: 14 }}>
-                  <label style={s.label}>Diagrammtyp</label>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {[['pie', 'Kuchen', PieChart], ['bar', 'Balken', BarChart3]].map(([type, label, Icon]) => (
-                      <button key={type} onClick={() => setForm(p => ({ ...p, type }))} style={{
-                        ...s.btn, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                        background: form.type === type ? '#0ea5e9' : '#f1f5f9',
-                        color: form.type === type ? '#fff' : '#64748b',
-                      }}>
-                        <Icon size={16} /> {label}
-                      </button>
-                    ))}
+                <>
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={s.label}>Diagrammtyp</label>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {[
+                        ['pie', 'Kreis', PieChart],
+                        ['column', 'Säulen', BarChart3],
+                        ['bar', 'Balken', AlignLeft],
+                        ['stacked_column', 'Gest. Säulen', BarChart3],
+                        ['stacked_bar', 'Gest. Balken', AlignLeft],
+                      ].map(([type, label, Icon]) => (
+                        <button key={type} onClick={() => setForm(p => ({ ...p, type }))} style={{
+                          padding: '8px 12px', borderRadius: 10, border: 'none', fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.2s',
+                          background: form.type === type ? '#0ea5e9' : '#f1f5f9',
+                          color: form.type === type ? '#fff' : '#64748b',
+                        }}>
+                          <Icon size={14} /> {label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                  {(form.type === 'stacked_column' || form.type === 'stacked_bar') && isShared && (
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={s.label}>Stapel-Modus</label>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {[
+                          ['category_person', 'Kategorien / Personen'],
+                          ['person_category', 'Personen / Kategorien'],
+                        ].map(([mode, label]) => (
+                          <button key={mode} onClick={() => setForm(p => ({ ...p, stackMode: mode }))} style={{
+                            ...s.btn, flex: 1, fontSize: 12,
+                            background: (form.stackMode || 'category_person') === mode ? '#8b5cf6' : '#f1f5f9',
+                            color: (form.stackMode || 'category_person') === mode ? '#fff' : '#64748b',
+                          }}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
+                        {(form.stackMode || 'category_person') === 'category_person'
+                          ? 'Achse = Kategorien, Stapel = Personen'
+                          : 'Achse = Personen, Stapel = Kategorien'}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               <div style={{ marginBottom: 14 }}>
@@ -466,32 +556,61 @@ export default function Overview() {
           </motion.div>
         ) : (
           charts.map((chart, i) => {
-            const { labels, datasets, sym } = getChartData(chart);
+            const isStacked = chart.type === 'stacked_column' || chart.type === 'stacked_bar';
+            const isHorizontal = chart.type === 'bar' || chart.type === 'stacked_bar';
+            const isPie = chart.type === 'pie';
+            const chartData = isStacked ? getStackedChartData(chart) : getChartData(chart);
+            const { labels, datasets, sym } = chartData;
             const hasData = labels.length > 0;
 
             const chartOptions = {
               responsive: true,
               maintainAspectRatio: true,
+              indexAxis: isHorizontal ? 'y' : 'x',
               plugins: {
-                legend: { position: chart.type === 'pie' ? 'bottom' : 'top', labels: { padding: 16, usePointStyle: true, font: { size: 12 } } },
+                legend: {
+                  display: isPie || isStacked,
+                  position: isPie ? 'bottom' : 'top',
+                  labels: { padding: 12, usePointStyle: true, font: { size: 11 } },
+                },
                 tooltip: {
                   callbacks: {
-                    label: (ctx) => ` ${ctx.label}: ${sym} ${ctx.parsed?.toFixed?.(2) || ctx.parsed?.y?.toFixed?.(2) || ctx.raw?.toFixed?.(2) || 0}`,
+                    label: (ctx) => {
+                      const val = ctx.parsed?.x ?? ctx.parsed?.y ?? ctx.parsed ?? ctx.raw ?? 0;
+                      const v = typeof val === 'number' ? val.toFixed(2) : val;
+                      return isStacked
+                        ? ` ${ctx.dataset.label}: ${sym} ${v}`
+                        : ` ${ctx.label}: ${sym} ${v}`;
+                    },
                   },
                 },
                 datalabels: chart.showValues ? {
-                  color: chart.type === 'pie' ? '#fff' : '#1e293b',
-                  font: { weight: 'bold', size: 11 },
-                  formatter: (value) => `${sym}${value.toFixed(0)}`,
-                  anchor: chart.type === 'pie' ? 'center' : 'end',
-                  align: chart.type === 'pie' ? 'center' : 'top',
+                  color: isPie ? '#fff' : '#1e293b',
+                  font: { weight: 'bold', size: 10 },
+                  formatter: (value) => value > 0 ? `${sym}${value.toFixed(0)}` : '',
+                  anchor: isPie ? 'center' : 'end',
+                  align: isPie ? 'center' : isHorizontal ? 'right' : 'top',
                 } : { display: false },
               },
-              scales: chart.type === 'bar' ? {
-                y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 } } },
-                x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+              scales: !isPie ? {
+                x: {
+                  stacked: isStacked,
+                  beginAtZero: isHorizontal,
+                  grid: { display: isHorizontal, color: '#f1f5f9' },
+                  ticks: { font: { size: 11 } },
+                },
+                y: {
+                  stacked: isStacked,
+                  beginAtZero: !isHorizontal,
+                  grid: { display: !isHorizontal, color: '#f1f5f9' },
+                  ticks: { font: { size: 11 } },
+                },
               } : undefined,
             };
+
+            const barData = isStacked
+              ? { labels, datasets }
+              : { labels, datasets: [{ ...datasets[0], label: chart.label, borderRadius: 8 }] };
 
             return (
               <motion.div
@@ -510,17 +629,17 @@ export default function Overview() {
                     }} style={s.btnGhost}>
                       {chart.showValues ? <Eye size={16} /> : <EyeOff size={16} />}
                     </button>
-                    <button onClick={() => { setChartForm({ ...chart }); setEditChart(chart); setShowChartModal(true); }} style={s.btnGhost}><Edit3 size={14} /></button>
+                    <button onClick={() => { setChartForm({ ...chart, stackMode: chart.stackMode || 'category_person' }); setEditChart(chart); setShowChartModal(true); }} style={s.btnGhost}><Edit3 size={14} /></button>
                     <button onClick={() => deleteChart(chart.id)} style={s.btnGhost}><Trash2 size={14} /></button>
                   </div>
                 </div>
 
                 {hasData ? (
-                  <div style={{ maxHeight: 300 }}>
-                    {chart.type === 'pie' ? (
+                  <div style={{ maxHeight: isHorizontal ? Math.max(200, labels.length * 40 + 60) : 300 }}>
+                    {isPie ? (
                       <Pie data={{ labels, datasets }} options={chartOptions} plugins={chart.showValues ? [ChartDataLabels] : []} />
                     ) : (
-                      <Bar data={{ labels, datasets: [{ ...datasets[0], label: chart.label }] }} options={chartOptions} plugins={chart.showValues ? [ChartDataLabels] : []} />
+                      <Bar data={barData} options={chartOptions} plugins={chart.showValues ? [ChartDataLabels] : []} />
                     )}
                   </div>
                 ) : (
