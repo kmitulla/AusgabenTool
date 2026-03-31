@@ -213,10 +213,12 @@ export function calculateDebts(expenses, participants, payments = []) {
   });
 
   // Factor in recorded person-to-person payments
+  // "from" paid money → their balance increases (debt reduced)
+  // "to" received money → their balance decreases (credit reduced)
   payments.forEach(pay => {
     const amt = parseFloat(pay.amount) || 0;
-    if (balances[pay.from] !== undefined) balances[pay.from] -= amt;
-    if (balances[pay.to] !== undefined) balances[pay.to] += amt;
+    if (balances[pay.from] !== undefined) balances[pay.from] += amt;
+    if (balances[pay.to] !== undefined) balances[pay.to] -= amt;
   });
 
   // Simplify debts

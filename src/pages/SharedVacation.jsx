@@ -400,7 +400,12 @@ export default function SharedVacation() {
           share = converted / exp.paidFor.length;
         }
         if (exp.directlyPaid?.[person]) {
-          if (stats[exp.paidBy]) stats[exp.paidBy].paid -= share;
+          // Show direct payment transparently: person owes their share but also paid it
+          if (stats[person]) {
+            stats[person].owes += share;
+            stats[person].paid += share;
+            stats[person].owedExpenses.push(exp);
+          }
         } else {
           if (stats[person]) {
             stats[person].owes += share;
@@ -410,10 +415,12 @@ export default function SharedVacation() {
       });
     });
     // Factor in person-to-person payments
+    // "from" paid money out → increases their "paid" total
+    // "to" received money → increases their "owes" (offsets their credit)
     payments.forEach(pay => {
       const amt = parseFloat(pay.amount) || 0;
-      if (stats[pay.from]) stats[pay.from].paid -= amt;
-      if (stats[pay.to]) stats[pay.to].paid += amt;
+      if (stats[pay.from]) stats[pay.from].paid += amt;
+      if (stats[pay.to]) stats[pay.to].owes += amt;
     });
     return stats;
   }, [expenses, participants, payments]);
@@ -665,7 +672,7 @@ export default function SharedVacation() {
                       <tbody>
                         {participants.map((p, i) => {
                           const stats = personStats[p] || { paid: 0, owes: 0 };
-                          const balance = stats.paid - stats.owes;
+                          const balance = balances[p] || 0;
                           const balanceStyle = balance > 0.01
                             ? styles.balancePositive
                             : balance < -0.01
