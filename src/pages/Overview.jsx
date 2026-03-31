@@ -1,15 +1,16 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
-import { Pie, Bar } from 'react-chartjs-2';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, Filler } from 'chart.js';
+import { Pie, Doughnut, Bar } from 'react-chartjs-2';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { updateVacation, calculateDebts } from '../utils/db';
 import { useVacation } from '../contexts/VacationContext';
-import { Plus, Trash2, Edit3, TrendingUp, DollarSign, Calendar, BarChart3, PieChart, X, Eye, EyeOff, Users, AlignLeft } from 'lucide-react';
+import { Plus, Trash2, Edit3, TrendingUp, DollarSign, Calendar, BarChart3, PieChart, X, Eye, EyeOff, Users, AlignLeft, Percent } from 'lucide-react';
 
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, Filler);
 
-const COLORS = ['#0ea5e9', '#f97316', '#22c55e', '#ef4444', '#8b5cf6', '#ec4899', '#eab308', '#06b6d4', '#f43f5e', '#84cc16', '#a855f7', '#14b8a6'];
+const COLORS = ['#3b82f6', '#f97316', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#f59e0b', '#06b6d4', '#f43f5e', '#84cc16', '#a855f7', '#14b8a6'];
+const COLORS_SOFT = COLORS.map(c => c + 'cc');
 const currencySymbols = { EUR: '€', USD: '$', GBP: '£', CHF: 'CHF', JPY: '¥', TRY: '₺', THB: '฿' };
 
 function genId() { return Math.random().toString(36).substring(2, 9); }
@@ -21,7 +22,7 @@ export default function Overview() {
   const [editKpi, setEditKpi] = useState(null);
   const [editChart, setEditChart] = useState(null);
   const [kpiForm, setKpiForm] = useState({ type: 'total', label: '', categories: [], currency: 'EUR', mergedCategories: [], persons: [] });
-  const [chartForm, setChartForm] = useState({ type: 'pie', label: '', categories: [], currency: 'EUR', showValues: true, mergedCategories: [], persons: [], stackMode: 'category_person' });
+  const [chartForm, setChartForm] = useState({ type: 'pie', label: '', categories: [], currency: 'EUR', showValues: true, showPercent: false, mergedCategories: [], persons: [], stackMode: 'category_person' });
   const [mergeInput, setMergeInput] = useState({ name: '', categories: [] });
 
   const rates = currentVacation?.settings?.exchangeRates || { EUR: 1 };
@@ -118,14 +119,17 @@ export default function Overview() {
     });
     const sym = currencySymbols[cur] || cur;
 
+    const isPie = chart.type === 'pie';
     return {
       labels,
       datasets: [{
         data: values,
-        backgroundColor: labels.map((_, i) => COLORS[i % COLORS.length]),
-        borderColor: labels.map((_, i) => COLORS[i % COLORS.length]),
-        borderWidth: chart.type === 'pie' ? 2 : 0,
-        borderRadius: chart.type === 'bar' ? 8 : 0,
+        backgroundColor: isPie ? COLORS_SOFT : labels.map((_, i) => COLORS[i % COLORS.length] + 'dd'),
+        borderColor: isPie ? '#ffffff' : labels.map((_, i) => COLORS[i % COLORS.length]),
+        borderWidth: isPie ? 3 : 0,
+        borderRadius: isPie ? 0 : 10,
+        hoverBackgroundColor: labels.map((_, i) => COLORS[i % COLORS.length]),
+        hoverOffset: isPie ? 8 : 0,
       }],
       sym,
     };
@@ -310,7 +314,7 @@ export default function Overview() {
       border: `1px solid ${color}30`,
       position: 'relative', overflow: 'hidden',
     }),
-    chartCard: { background: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0', marginBottom: 16 },
+    chartCard: { background: '#fff', borderRadius: 20, padding: '24px 20px', boxShadow: '0 4px 24px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', marginBottom: 20 },
     btn: { padding: '10px 18px', borderRadius: 12, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s' },
     btnPrimary: { background: 'linear-gradient(135deg, #0ea5e9, #06b6d4)', color: '#fff' },
     btnSmall: { padding: '6px 12px', borderRadius: 8, border: 'none', fontSize: 12, cursor: 'pointer', background: '#f1f5f9', color: '#64748b' },
@@ -474,8 +478,8 @@ export default function Overview() {
               )}
 
               {!isKpi && (
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ ...s.label, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ marginBottom: 14, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                  <label style={{ ...s.label, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 0 }}>
                     Werte anzeigen
                     <button onClick={() => setForm(p => ({ ...p, showValues: !p.showValues }))} style={{
                       width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.3s',
@@ -487,6 +491,20 @@ export default function Overview() {
                       }} />
                     </button>
                   </label>
+                  {form.type === 'pie' && (
+                    <label style={{ ...s.label, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 0 }}>
+                      Prozent %
+                      <button onClick={() => setForm(p => ({ ...p, showPercent: !p.showPercent }))} style={{
+                        width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.3s',
+                        background: form.showPercent ? '#8b5cf6' : '#cbd5e1',
+                      }}>
+                        <div style={{
+                          width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3,
+                          left: form.showPercent ? 23 : 3, transition: 'left 0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                        }} />
+                      </button>
+                    </label>
+                  )}
                 </div>
               )}
 
@@ -608,31 +626,59 @@ export default function Overview() {
             const { labels, datasets, sym } = chartData;
             const hasData = labels.length > 0;
 
+            const totalForPercent = isPie ? datasets[0]?.data?.reduce((a, b) => a + b, 0) || 1 : 1;
+
             const chartOptions = {
               responsive: true,
               maintainAspectRatio: true,
               indexAxis: isHorizontal ? 'y' : 'x',
+              animation: { duration: 600, easing: 'easeOutQuart' },
               plugins: {
                 legend: {
                   display: isPie || isStacked || isBalance,
                   position: isPie ? 'bottom' : 'top',
-                  labels: { padding: 12, usePointStyle: true, font: { size: 11 } },
+                  labels: {
+                    padding: 16, usePointStyle: true, pointStyleWidth: 10,
+                    font: { size: 12, weight: 500, family: "'Inter', system-ui, sans-serif" },
+                    color: '#475569',
+                  },
                 },
                 tooltip: {
+                  backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                  titleFont: { size: 13, weight: 600 },
+                  bodyFont: { size: 12 },
+                  padding: 12,
+                  cornerRadius: 10,
+                  displayColors: true,
+                  boxPadding: 4,
                   callbacks: {
                     label: (ctx) => {
                       const val = ctx.parsed?.x ?? ctx.parsed?.y ?? ctx.parsed ?? ctx.raw ?? 0;
                       const v = typeof val === 'number' ? val.toFixed(2) : val;
-                      return (isStacked || isBalance)
+                      const base = (isStacked || isBalance)
                         ? ` ${ctx.dataset.label}: ${sym} ${v}`
                         : ` ${ctx.label}: ${sym} ${v}`;
+                      if (isPie && chart.showPercent) {
+                        const pct = ((val / totalForPercent) * 100).toFixed(1);
+                        return `${base} (${pct}%)`;
+                      }
+                      return base;
                     },
                   },
                 },
                 datalabels: chart.showValues ? {
-                  color: isPie ? '#fff' : '#1e293b',
-                  font: { weight: 'bold', size: 10 },
-                  formatter: (value) => value > 0 ? `${sym}${value.toFixed(0)}` : '',
+                  color: isPie ? '#fff' : '#334155',
+                  font: { weight: 700, size: isPie ? 12 : 11, family: "'Inter', system-ui, sans-serif" },
+                  textShadowColor: isPie ? 'rgba(0,0,0,0.3)' : undefined,
+                  textShadowBlur: isPie ? 4 : 0,
+                  formatter: (value) => {
+                    if (value <= 0) return '';
+                    if (isPie && chart.showPercent) {
+                      const pct = ((value / totalForPercent) * 100).toFixed(0);
+                      return `${sym}${value.toFixed(0)}\n${pct}%`;
+                    }
+                    return `${sym}${value.toFixed(0)}`;
+                  },
                   anchor: isPie ? 'center' : 'end',
                   align: isPie ? 'center' : isHorizontal ? 'right' : 'top',
                 } : { display: false },
@@ -641,14 +687,16 @@ export default function Overview() {
                 x: {
                   stacked: isStacked,
                   beginAtZero: isHorizontal,
-                  grid: { display: isHorizontal, color: '#f1f5f9' },
-                  ticks: { font: { size: 11 } },
+                  grid: { display: isHorizontal, color: '#f1f5f920', drawBorder: false },
+                  ticks: { font: { size: 11, weight: 500 }, color: '#64748b', padding: 4 },
+                  border: { display: false },
                 },
                 y: {
                   stacked: isStacked,
                   beginAtZero: !isHorizontal,
-                  grid: { display: !isHorizontal, color: '#f1f5f9' },
-                  ticks: { font: { size: 11 } },
+                  grid: { display: !isHorizontal, color: '#f1f5f920', drawBorder: false },
+                  ticks: { font: { size: 11, weight: 500 }, color: '#64748b', padding: 4 },
+                  border: { display: false },
                 },
               } : undefined,
             };
@@ -666,23 +714,38 @@ export default function Overview() {
                 style={s.chartCard}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <h4 style={{ margin: 0, fontSize: 15, color: '#1e293b' }}>{chart.label}</h4>
-                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1e293b', letterSpacing: '-0.01em' }}>{chart.label}</h4>
+                  <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    {isPie && (
+                      <button onClick={() => {
+                        const updated = charts.map(c => c.id === chart.id ? { ...c, showPercent: !c.showPercent } : c);
+                        saveCharts(updated);
+                      }} style={{ ...s.btnGhost, color: chart.showPercent ? '#8b5cf6' : '#94a3b8' }}>
+                        <Percent size={15} />
+                      </button>
+                    )}
                     <button onClick={() => {
                       const updated = charts.map(c => c.id === chart.id ? { ...c, showValues: !c.showValues } : c);
                       saveCharts(updated);
                     }} style={s.btnGhost}>
                       {chart.showValues ? <Eye size={16} /> : <EyeOff size={16} />}
                     </button>
-                    <button onClick={() => { setChartForm({ ...chart, stackMode: chart.stackMode || 'category_person' }); setEditChart(chart); setShowChartModal(true); }} style={s.btnGhost}><Edit3 size={14} /></button>
+                    <button onClick={() => { setChartForm({ ...chart, showPercent: chart.showPercent || false, stackMode: chart.stackMode || 'category_person' }); setEditChart(chart); setShowChartModal(true); }} style={s.btnGhost}><Edit3 size={14} /></button>
                     <button onClick={() => deleteChart(chart.id)} style={s.btnGhost}><Trash2 size={14} /></button>
                   </div>
                 </div>
 
                 {hasData ? (
-                  <div style={{ maxHeight: isHorizontal ? Math.max(200, labels.length * 40 + 60) : 300 }}>
+                  <div style={{
+                    maxHeight: isHorizontal ? Math.max(220, labels.length * 44 + 60) : 320,
+                    padding: isPie ? '8px 0' : '4px 0',
+                  }}>
                     {isPie ? (
-                      <Pie data={{ labels, datasets }} options={chartOptions} plugins={chart.showValues ? [ChartDataLabels] : []} />
+                      <Doughnut
+                        data={{ labels, datasets }}
+                        options={{ ...chartOptions, cutout: '35%' }}
+                        plugins={chart.showValues ? [ChartDataLabels] : []}
+                      />
                     ) : (
                       <Bar data={barData} options={chartOptions} plugins={chart.showValues ? [ChartDataLabels] : []} />
                     )}
