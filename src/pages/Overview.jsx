@@ -187,6 +187,49 @@ export default function Overview() {
     }
   };
 
+  const getBalanceChartData = (chart) => {
+    const cur = chart.currency || displayCurrency;
+    const sym = currencySymbols[cur] || cur;
+    const exps = getExpensesByCategories(chart.categories, chart.mergedCategories, []);
+    const filterPersons = chart.persons || [];
+    const personsToShow = filterPersons.length > 0 ? filterPersons : participants;
+    if (!personsToShow.length) return { labels: [], datasets: [], sym };
+
+    const { balances } = calculateDebts(exps, participants, payments);
+
+    // Calculate paid per person
+    const paid = {};
+    personsToShow.forEach(p => { paid[p] = 0; });
+    exps.forEach(e => {
+      if (personsToShow.includes(e.paidBy)) {
+        paid[e.paidBy] = (paid[e.paidBy] || 0) + convertAmount(e.amount, e.exchangeRate, cur);
+      }
+    });
+
+    const labels = personsToShow;
+    const balanceValues = labels.map(p => Math.round((balances[p] || 0) * 100) / 100);
+    const paidValues = labels.map(p => Math.round((paid[p] || 0) * 100) / 100);
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Bezahlt',
+          data: paidValues,
+          backgroundColor: '#0ea5e9',
+          borderRadius: 6,
+        },
+        {
+          label: 'Bilanz',
+          data: balanceValues,
+          backgroundColor: balanceValues.map(v => v >= 0 ? '#22c55e' : '#ef4444'),
+          borderRadius: 6,
+        },
+      ],
+      sym,
+    };
+  };
+
   const saveKpis = async (newKpis) => {
     await updateVacation(currentVacation.id, { kpis: newKpis });
     await refreshVacation();
@@ -209,7 +252,7 @@ export default function Overview() {
 
   const handleSaveChart = async () => {
     const item = { ...chartForm, id: editChart?.id || genId() };
-    const typeLabels = { pie: 'Kreisdiagramm', column: 'Säulendiagramm', bar: 'Balkendiagramm', stacked_column: 'Gestapeltes Säulendiagramm', stacked_bar: 'Gestapeltes Balkendiagramm' };
+    const typeLabels = { pie: 'Kreisdiagramm', column: 'Säulendiagramm', bar: 'Balkendiagramm', stacked_column: 'Gestapeltes Säulendiagramm', stacked_bar: 'Gestapeltes Balkendiagramm', balance_column: 'Personen-Bilanz (Säulen)', balance_bar: 'Personen-Bilanz (Balken)' };
     if (!item.label) item.label = typeLabels[item.type] || 'Diagramm';
     const newCharts = editChart ? charts.map(c => c.id === editChart.id ? item : c) : [...charts, item];
     await saveCharts(newCharts);
@@ -354,6 +397,7 @@ export default function Overview() {
                         ['bar', 'Balken', AlignLeft],
                         ['stacked_column', 'Gest. Säulen', BarChart3],
                         ['stacked_bar', 'Gest. Balken', AlignLeft],
+                        ...(isShared ? [['balance_column', 'Bilanz Säulen', Users], ['balance_bar', 'Bilanz Balken', Users]] : []),
                       ].map(([type, label, Icon]) => (
                         <button key={type} onClick={() => setForm(p => ({ ...p, type }))} style={{
                           padding: '8px 12px', borderRadius: 10, border: 'none', fontWeight: 600, fontSize: 12, cursor: 'pointer',
@@ -557,9 +601,10 @@ export default function Overview() {
         ) : (
           charts.map((chart, i) => {
             const isStacked = chart.type === 'stacked_column' || chart.type === 'stacked_bar';
-            const isHorizontal = chart.type === 'bar' || chart.type === 'stacked_bar';
+            const isBalance = chart.type === 'balance_column' || chart.type === 'balance_bar';
+            const isHorizontal = chart.type === 'bar' || chart.type === 'stacked_bar' || chart.type === 'balance_bar';
             const isPie = chart.type === 'pie';
-            const chartData = isStacked ? getStackedChartData(chart) : getChartData(chart);
+            const chartData = isBalance ? getBalanceChartData(chart) : isStacked ? getStackedChartData(chart) : getChartData(chart);
             const { labels, datasets, sym } = chartData;
             const hasData = labels.length > 0;
 
@@ -569,7 +614,7 @@ export default function Overview() {
               indexAxis: isHorizontal ? 'y' : 'x',
               plugins: {
                 legend: {
-                  display: isPie || isStacked,
+                  display: isPie || isStacked || isBalance,
                   position: isPie ? 'bottom' : 'top',
                   labels: { padding: 12, usePointStyle: true, font: { size: 11 } },
                 },
@@ -578,7 +623,7 @@ export default function Overview() {
                     label: (ctx) => {
                       const val = ctx.parsed?.x ?? ctx.parsed?.y ?? ctx.parsed ?? ctx.raw ?? 0;
                       const v = typeof val === 'number' ? val.toFixed(2) : val;
-                      return isStacked
+                      return (isStacked || isBalance)
                         ? ` ${ctx.dataset.label}: ${sym} ${v}`
                         : ` ${ctx.label}: ${sym} ${v}`;
                     },
@@ -608,7 +653,7 @@ export default function Overview() {
               } : undefined,
             };
 
-            const barData = isStacked
+            const barData = (isStacked || isBalance)
               ? { labels, datasets }
               : { labels, datasets: [{ ...datasets[0], label: chart.label, borderRadius: 8 }] };
 
