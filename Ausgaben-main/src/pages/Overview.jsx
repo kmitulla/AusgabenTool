@@ -1,0 +1,518 @@
+import { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
+import { Pie, Bar } from 'react-chartjs-2';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+import { updateVacation } from '../utils/db';
+import { useVacation } from '../contexts/VacationContext';
+import { Plus, Trash2, Edit3, TrendingUp, DollarSign, Calendar, BarChart3, PieChart, X, Eye, EyeOff } from 'lucide-react';
+
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
+
+const COLORS = ['#0ea5e9', '#f97316', '#22c55e', '#ef4444', '#8b5cf6', '#ec4899', '#eab308', '#06b6d4', '#f43f5e', '#84cc16', '#a855f7', '#14b8a6'];
+const currencySymbols = { EUR: '€', USD: '$', GBP: '£', CHF: 'CHF', JPY: '¥', TRY: '₺', THB: '฿' };
+
+function genId() { return Math.random().toString(36).substring(2, 9); }
+
+export default function Overview() {
+  const { currentVacation, expenses, refreshVacation } = useVacation();
+  const [showKpiModal, setShowKpiModal] = useState(false);
+  const [showChartModal, setShowChartModal] = useState(false);
+  const [editKpi, setEditKpi] = useState(null);
+  const [editChart, setEditChart] = useState(null);
+  const [kpiForm, setKpiForm] = useState({ type: 'total', label: '', categories: [], currency: 'EUR', mergedCategories: [] });
+  const [chartForm, setChartForm] = useState({ type: 'pie', label: '', categories: [], currency: 'EUR', showValues: true, mergedCategories: [] });
+  const [mergeInput, setMergeInput] = useState({ name: '', categories: [] });
+
+  const rates = currentVacation?.settings?.exchangeRates || { EUR: 1 };
+  const displayCurrency = currentVacation?.settings?.currency || 'EUR';
+  const categories = useMemo(() => {
+    const fromVacation = currentVacation?.categories || [];
+    const fromExpenses = (expenses || []).map(e => e.category).filter(Boolean);
+    return [...new Set([...fromVacation, ...fromExpenses])];
+  }, [currentVacation?.categories, expenses]);
+  const kpis = currentVacation?.kpis || [];
+  const charts = currentVacation?.charts || [];
+
+  const convertAmount = (amount, fromRate, toCurrency) => {
+    const amt = parseFloat(amount) || 0;
+    const rate = parseFloat(fromRate) || 1;
+    const baseAmount = amt / rate;
+    const targetRate = rates[toCurrency] || 1;
+    return baseAmount * targetRate;
+  };
+
+  const getExpensesByCategories = (selectedCats, merged) => {
+    let exps = expenses || [];
+    if (merged && merged.length > 0) {
+      // Build category map from merged groups
+      const catMap = {};
+      merged.forEach(m => m.categories.forEach(c => { catMap[c] = m.name; }));
+      exps = exps.map(e => ({
+        ...e,
+        displayCategory: catMap[e.category] || e.category,
+      }));
+    } else {
+      exps = exps.map(e => ({ ...e, displayCategory: e.category }));
+    }
+    if (selectedCats && selectedCats.length > 0) {
+      const allCats = new Set(selectedCats);
+      if (merged) merged.forEach(m => { if (selectedCats.includes(m.name)) m.categories.forEach(c => allCats.add(c)); });
+      exps = exps.filter(e => allCats.has(e.category) || allCats.has(e.displayCategory));
+    }
+    return exps;
+  };
+
+  const calcKpiValue = (kpi) => {
+    const cur = kpi.currency || displayCurrency;
+    const exps = getExpensesByCategories(kpi.categories, kpi.mergedCategories);
+
+    let result;
+    switch (kpi.type) {
+      case 'total': {
+        result = exps.reduce((sum, e) => sum + convertAmount(e.amount, e.exchangeRate, cur), 0);
+        break;
+      }
+      case 'category_total': {
+        result = exps.reduce((sum, e) => sum + convertAmount(e.amount, e.exchangeRate, cur), 0);
+        break;
+      }
+      case 'daily_avg': {
+        const total = exps.reduce((sum, e) => sum + convertAmount(e.amount, e.exchangeRate, cur), 0);
+        const days = new Set(exps.map(e => e.date).filter(Boolean));
+        result = days.size > 0 ? total / days.size : 0;
+        break;
+      }
+      case 'category_daily_avg': {
+        const total = exps.reduce((sum, e) => sum + convertAmount(e.amount, e.exchangeRate, cur), 0);
+        const days = new Set(exps.map(e => e.date).filter(Boolean));
+        result = days.size > 0 ? total / days.size : 0;
+        break;
+      }
+      case 'count': return exps.length;
+      case 'category_count': return exps.length;
+      default: return 0;
+    }
+    return isNaN(result) ? 0 : result;
+  };
+
+  const getChartData = (chart) => {
+    const cur = chart.currency || displayCurrency;
+    const exps = getExpensesByCategories(chart.categories, chart.mergedCategories);
+    const grouped = {};
+    exps.forEach(e => {
+      const cat = e.displayCategory || e.category || 'Sonstiges';
+      grouped[cat] = (grouped[cat] || 0) + convertAmount(e.amount, e.exchangeRate, cur);
+    });
+
+    const labels = Object.keys(grouped);
+    const values = Object.values(grouped).map(v => {
+      const rounded = Math.round(v * 100) / 100;
+      return isNaN(rounded) ? 0 : rounded;
+    });
+    const sym = currencySymbols[cur] || cur;
+
+    return {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: labels.map((_, i) => COLORS[i % COLORS.length]),
+        borderColor: labels.map((_, i) => COLORS[i % COLORS.length]),
+        borderWidth: chart.type === 'pie' ? 2 : 0,
+        borderRadius: chart.type === 'bar' ? 8 : 0,
+      }],
+      sym,
+    };
+  };
+
+  const saveKpis = async (newKpis) => {
+    await updateVacation(currentVacation.id, { kpis: newKpis });
+    await refreshVacation();
+  };
+
+  const saveCharts = async (newCharts) => {
+    await updateVacation(currentVacation.id, { charts: newCharts });
+    await refreshVacation();
+  };
+
+  const handleSaveKpi = async () => {
+    const item = { ...kpiForm, id: editKpi?.id || genId() };
+    if (!item.label) item.label = kpiTypeLabels[item.type] || 'KPI';
+    const newKpis = editKpi ? kpis.map(k => k.id === editKpi.id ? item : k) : [...kpis, item];
+    await saveKpis(newKpis);
+    setShowKpiModal(false);
+    setEditKpi(null);
+    setKpiForm({ type: 'total', label: '', categories: [], currency: displayCurrency, mergedCategories: [] });
+  };
+
+  const handleSaveChart = async () => {
+    const item = { ...chartForm, id: editChart?.id || genId() };
+    if (!item.label) item.label = item.type === 'pie' ? 'Kreisdiagramm' : 'Balkendiagramm';
+    const newCharts = editChart ? charts.map(c => c.id === editChart.id ? item : c) : [...charts, item];
+    await saveCharts(newCharts);
+    setShowChartModal(false);
+    setEditChart(null);
+    setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, mergedCategories: [] });
+  };
+
+  const deleteKpi = async (id) => {
+    await saveKpis(kpis.filter(k => k.id !== id));
+  };
+
+  const deleteChart = async (id) => {
+    await saveCharts(charts.filter(c => c.id !== id));
+  };
+
+  const addMergedCategory = (form, setForm) => {
+    if (!mergeInput.name || mergeInput.categories.length < 2) return;
+    setForm(prev => ({
+      ...prev,
+      mergedCategories: [...(prev.mergedCategories || []), { ...mergeInput }],
+    }));
+    setMergeInput({ name: '', categories: [] });
+  };
+
+  const kpiTypeLabels = {
+    total: 'Gesamtausgaben',
+    category_total: 'Kategorie-Summe',
+    daily_avg: 'Tagesdurchschnitt',
+    category_daily_avg: 'Kategorie-Tagesdurchschnitt',
+    count: 'Anzahl Ausgaben',
+    category_count: 'Kategorie-Anzahl',
+  };
+
+  const kpiTypeIcons = {
+    total: DollarSign,
+    category_total: DollarSign,
+    daily_avg: Calendar,
+    category_daily_avg: Calendar,
+    count: TrendingUp,
+    category_count: TrendingUp,
+  };
+
+  const s = {
+    page: { padding: 16 },
+    section: { marginBottom: 24 },
+    sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+    sectionTitle: { fontSize: 16, fontWeight: 700, color: '#0c4a6e', display: 'flex', alignItems: 'center', gap: 8 },
+    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 },
+    kpiCard: (color) => ({
+      background: `linear-gradient(135deg, ${color}15, ${color}08)`,
+      borderRadius: 16, padding: '18px 16px',
+      border: `1px solid ${color}30`,
+      position: 'relative', overflow: 'hidden',
+    }),
+    chartCard: { background: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0', marginBottom: 16 },
+    btn: { padding: '10px 18px', borderRadius: 12, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s' },
+    btnPrimary: { background: 'linear-gradient(135deg, #0ea5e9, #06b6d4)', color: '#fff' },
+    btnSmall: { padding: '6px 12px', borderRadius: 8, border: 'none', fontSize: 12, cursor: 'pointer', background: '#f1f5f9', color: '#64748b' },
+    btnGhost: { background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#94a3b8' },
+    label: { fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 6, display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' },
+    input: { width: '100%', padding: '10px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 14, outline: 'none', background: '#f8fafc', boxSizing: 'border-box' },
+    select: { padding: '10px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 14, background: '#f8fafc', outline: 'none', width: '100%', boxSizing: 'border-box' },
+    overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 },
+    modal: { background: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 480, maxHeight: '85vh', overflow: 'auto' },
+    badge: (active) => ({
+      display: 'inline-block', padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', transition: 'all 0.2s',
+      background: active ? '#0ea5e9' : '#f0f9ff', color: active ? '#fff' : '#0ea5e9',
+    }),
+  };
+
+  if (!currentVacation) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
+        <motion.div animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 2 }} style={{ fontSize: 48, marginBottom: 16 }}>📊</motion.div>
+        <p>Bitte erstelle zuerst einen Urlaub</p>
+      </div>
+    );
+  }
+
+  const renderCategoryMerger = (form, setForm) => (
+    <div style={{ marginTop: 12, padding: 14, background: '#f8fafc', borderRadius: 12 }}>
+      <label style={s.label}>Kategorien zusammenfassen</label>
+      {(form.mergedCategories || []).map((m, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: 13 }}>
+          <span style={{ fontWeight: 600 }}>{m.name}:</span>
+          <span style={{ color: '#64748b' }}>{m.categories.join(', ')}</span>
+          <button onClick={() => setForm(prev => ({ ...prev, mergedCategories: prev.mergedCategories.filter((_, j) => j !== i) }))} style={s.btnGhost}><X size={14} /></button>
+        </div>
+      ))}
+      <input placeholder="Neuer Gruppenname" value={mergeInput.name} onChange={e => setMergeInput(p => ({ ...p, name: e.target.value }))} style={{ ...s.input, marginBottom: 8 }} />
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
+        {categories.map(cat => (
+          <button key={cat} onClick={() => setMergeInput(p => ({ ...p, categories: p.categories.includes(cat) ? p.categories.filter(c => c !== cat) : [...p.categories, cat] }))} style={s.badge(mergeInput.categories.includes(cat))}>
+            {cat}
+          </button>
+        ))}
+      </div>
+      <button onClick={() => addMergedCategory(form, setForm)} disabled={!mergeInput.name || mergeInput.categories.length < 2} style={{ ...s.btnSmall, opacity: (!mergeInput.name || mergeInput.categories.length < 2) ? 0.5 : 1 }}>
+        <Plus size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Gruppe hinzufügen
+      </button>
+    </div>
+  );
+
+  const renderModal = (isKpi) => {
+    const form = isKpi ? kpiForm : chartForm;
+    const setForm = isKpi ? setKpiForm : setChartForm;
+    const show = isKpi ? showKpiModal : showChartModal;
+    const setShow = isKpi ? setShowKpiModal : setShowChartModal;
+    const handleSave = isKpi ? handleSaveKpi : handleSaveChart;
+    const editing = isKpi ? editKpi : editChart;
+
+    return (
+      <AnimatePresence>
+        {show && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={s.overlay} onClick={() => { setShow(false); isKpi ? setEditKpi(null) : setEditChart(null); }}>
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} style={s.modal} onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <h3 style={{ margin: 0, color: '#1e293b' }}>{editing ? 'Bearbeiten' : isKpi ? 'Neuer KPI' : 'Neues Diagramm'}</h3>
+                <button onClick={() => { setShow(false); isKpi ? setEditKpi(null) : setEditChart(null); }} style={s.btnGhost}><X size={20} /></button>
+              </div>
+
+              {isKpi && (
+                <div style={{ marginBottom: 14 }}>
+                  <label style={s.label}>Typ</label>
+                  <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} style={s.select}>
+                    {Object.entries(kpiTypeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {!isKpi && (
+                <div style={{ marginBottom: 14 }}>
+                  <label style={s.label}>Diagrammtyp</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {[['pie', 'Kuchen', PieChart], ['bar', 'Balken', BarChart3]].map(([type, label, Icon]) => (
+                      <button key={type} onClick={() => setForm(p => ({ ...p, type }))} style={{
+                        ...s.btn, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        background: form.type === type ? '#0ea5e9' : '#f1f5f9',
+                        color: form.type === type ? '#fff' : '#64748b',
+                      }}>
+                        <Icon size={16} /> {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={s.label}>Bezeichnung</label>
+                <input value={form.label} onChange={e => setForm(p => ({ ...p, label: e.target.value }))} placeholder="z.B. Gesamtausgaben" style={s.input} />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={s.label}>Währung</label>
+                <select value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value }))} style={s.select}>
+                  {Object.keys(rates).map(c => <option key={c} value={c}>{c} {currencySymbols[c] ? `(${currencySymbols[c]})` : ''}</option>)}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={s.label}>Kategorien (leer = alle)</label>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {categories.map(cat => (
+                    <button key={cat} onClick={() => setForm(p => ({ ...p, categories: (p.categories || []).includes(cat) ? p.categories.filter(c => c !== cat) : [...(p.categories || []), cat] }))} style={s.badge((form.categories || []).includes(cat))}>
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {!isKpi && (
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ ...s.label, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    Werte anzeigen
+                    <button onClick={() => setForm(p => ({ ...p, showValues: !p.showValues }))} style={{
+                      width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.3s',
+                      background: form.showValues ? '#0ea5e9' : '#cbd5e1',
+                    }}>
+                      <div style={{
+                        width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3,
+                        left: form.showValues ? 23 : 3, transition: 'left 0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                      }} />
+                    </button>
+                  </label>
+                </div>
+              )}
+
+              {renderCategoryMerger(form, setForm)}
+
+              <motion.button whileTap={{ scale: 0.98 }} onClick={handleSave} style={{ ...s.btn, ...s.btnPrimary, width: '100%', marginTop: 16 }}>
+                {editing ? 'Speichern' : 'Hinzufügen'}
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    );
+  };
+
+  return (
+    <div id="export-content" style={s.page}>
+      {/* KPIs Section */}
+      <div style={s.section}>
+        <div style={s.sectionHeader}>
+          <div style={s.sectionTitle}><TrendingUp size={18} /> KPIs</div>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              setKpiForm({ type: 'total', label: '', categories: [], currency: displayCurrency, mergedCategories: [] });
+              setEditKpi(null);
+              setShowKpiModal(true);
+            }}
+            style={{ ...s.btnSmall, background: '#e0f2fe', color: '#0284c7' }}
+          >
+            <Plus size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} /> KPI
+          </motion.button>
+        </div>
+
+        {kpis.length === 0 ? (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: 'center', padding: 30, background: '#f8fafc', borderRadius: 16, color: '#94a3b8' }}>
+            <TrendingUp size={32} style={{ marginBottom: 8, opacity: 0.5 }} />
+            <p style={{ fontSize: 14 }}>Noch keine KPIs angelegt</p>
+            <p style={{ fontSize: 12 }}>Füge KPIs hinzu um deine Ausgaben im Blick zu behalten</p>
+          </motion.div>
+        ) : (
+          <div style={s.grid}>
+            {kpis.map((kpi, i) => {
+              const val = calcKpiValue(kpi);
+              const color = COLORS[i % COLORS.length];
+              const Icon = kpiTypeIcons[kpi.type] || TrendingUp;
+              const sym = currencySymbols[kpi.currency || displayCurrency] || kpi.currency || '€';
+              const isCount = kpi.type === 'count' || kpi.type === 'category_count';
+
+              return (
+                <motion.div
+                  key={kpi.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: i * 0.05 }}
+                  style={s.kpiCard(color)}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 10, background: `${color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon size={16} color={color} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 2 }}>
+                      <button onClick={() => { setKpiForm({ ...kpi }); setEditKpi(kpi); setShowKpiModal(true); }} style={s.btnGhost}><Edit3 size={14} /></button>
+                      <button onClick={() => deleteKpi(kpi.id)} style={s.btnGhost}><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    style={{ fontSize: 22, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}
+                  >
+                    {isCount ? Math.round(val) : `${sym} ${val.toFixed(2)}`}
+                  </motion.div>
+                  <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>
+                    {kpi.label || kpiTypeLabels[kpi.type]}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Charts Section */}
+      <div style={s.section}>
+        <div style={s.sectionHeader}>
+          <div style={s.sectionTitle}><BarChart3 size={18} /> Diagramme</div>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, mergedCategories: [] });
+              setEditChart(null);
+              setShowChartModal(true);
+            }}
+            style={{ ...s.btnSmall, background: '#e0f2fe', color: '#0284c7' }}
+          >
+            <Plus size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Diagramm
+          </motion.button>
+        </div>
+
+        {charts.length === 0 ? (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: 'center', padding: 30, background: '#f8fafc', borderRadius: 16, color: '#94a3b8' }}>
+            <PieChart size={32} style={{ marginBottom: 8, opacity: 0.5 }} />
+            <p style={{ fontSize: 14 }}>Noch keine Diagramme angelegt</p>
+            <p style={{ fontSize: 12 }}>Erstelle Diagramme für eine visuelle Übersicht</p>
+          </motion.div>
+        ) : (
+          charts.map((chart, i) => {
+            const { labels, datasets, sym } = getChartData(chart);
+            const hasData = labels.length > 0;
+
+            const chartOptions = {
+              responsive: true,
+              maintainAspectRatio: true,
+              plugins: {
+                legend: { position: chart.type === 'pie' ? 'bottom' : 'top', labels: { padding: 16, usePointStyle: true, font: { size: 12 } } },
+                tooltip: {
+                  callbacks: {
+                    label: (ctx) => ` ${ctx.label}: ${sym} ${ctx.parsed?.toFixed?.(2) || ctx.parsed?.y?.toFixed?.(2) || ctx.raw?.toFixed?.(2) || 0}`,
+                  },
+                },
+                datalabels: chart.showValues ? {
+                  color: chart.type === 'pie' ? '#fff' : '#1e293b',
+                  font: { weight: 'bold', size: 11 },
+                  formatter: (value) => `${sym}${value.toFixed(0)}`,
+                  anchor: chart.type === 'pie' ? 'center' : 'end',
+                  align: chart.type === 'pie' ? 'center' : 'top',
+                } : { display: false },
+              },
+              scales: chart.type === 'bar' ? {
+                y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 } } },
+                x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+              } : undefined,
+            };
+
+            return (
+              <motion.div
+                key={chart.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+                style={s.chartCard}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <h4 style={{ margin: 0, fontSize: 15, color: '#1e293b' }}>{chart.label}</h4>
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                    <button onClick={() => {
+                      const updated = charts.map(c => c.id === chart.id ? { ...c, showValues: !c.showValues } : c);
+                      saveCharts(updated);
+                    }} style={s.btnGhost}>
+                      {chart.showValues ? <Eye size={16} /> : <EyeOff size={16} />}
+                    </button>
+                    <button onClick={() => { setChartForm({ ...chart }); setEditChart(chart); setShowChartModal(true); }} style={s.btnGhost}><Edit3 size={14} /></button>
+                    <button onClick={() => deleteChart(chart.id)} style={s.btnGhost}><Trash2 size={14} /></button>
+                  </div>
+                </div>
+
+                {hasData ? (
+                  <div style={{ maxHeight: 300 }}>
+                    {chart.type === 'pie' ? (
+                      <Pie data={{ labels, datasets }} options={chartOptions} plugins={chart.showValues ? [ChartDataLabels] : []} />
+                    ) : (
+                      <Bar data={{ labels, datasets: [{ ...datasets[0], label: chart.label }] }} options={chartOptions} plugins={chart.showValues ? [ChartDataLabels] : []} />
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: 30, color: '#94a3b8', fontSize: 14 }}>
+                    Keine Daten vorhanden
+                  </div>
+                )}
+              </motion.div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Modals */}
+      {renderModal(true)}
+      {renderModal(false)}
+    </div>
+  );
+}
