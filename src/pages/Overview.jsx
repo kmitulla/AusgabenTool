@@ -3,9 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
-import { updateVacation } from '../utils/db';
+import { updateVacation, calculateDebts } from '../utils/db';
 import { useVacation } from '../contexts/VacationContext';
-import { Plus, Trash2, Edit3, TrendingUp, DollarSign, Calendar, BarChart3, PieChart, X, Eye, EyeOff } from 'lucide-react';
+import { Plus, Trash2, Edit3, TrendingUp, DollarSign, Calendar, BarChart3, PieChart, X, Eye, EyeOff, Users } from 'lucide-react';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
@@ -20,12 +20,15 @@ export default function Overview() {
   const [showChartModal, setShowChartModal] = useState(false);
   const [editKpi, setEditKpi] = useState(null);
   const [editChart, setEditChart] = useState(null);
-  const [kpiForm, setKpiForm] = useState({ type: 'total', label: '', categories: [], currency: 'EUR', mergedCategories: [] });
-  const [chartForm, setChartForm] = useState({ type: 'pie', label: '', categories: [], currency: 'EUR', showValues: true, mergedCategories: [] });
+  const [kpiForm, setKpiForm] = useState({ type: 'total', label: '', categories: [], currency: 'EUR', mergedCategories: [], persons: [] });
+  const [chartForm, setChartForm] = useState({ type: 'pie', label: '', categories: [], currency: 'EUR', showValues: true, mergedCategories: [], persons: [] });
   const [mergeInput, setMergeInput] = useState({ name: '', categories: [] });
 
   const rates = currentVacation?.settings?.exchangeRates || { EUR: 1 };
   const displayCurrency = currentVacation?.settings?.currency || 'EUR';
+  const isShared = currentVacation?.settings?.sharedMode || false;
+  const participants = currentVacation?.settings?.participants || [];
+  const payments = currentVacation?.payments || [];
   const categories = useMemo(() => {
     const fromVacation = currentVacation?.categories || [];
     const fromExpenses = (expenses || []).map(e => e.category).filter(Boolean);
@@ -42,10 +45,12 @@ export default function Overview() {
     return baseAmount * targetRate;
   };
 
-  const getExpensesByCategories = (selectedCats, merged) => {
+  const getExpensesByCategories = (selectedCats, merged, persons) => {
     let exps = expenses || [];
+    if (persons && persons.length > 0) {
+      exps = exps.filter(e => persons.includes(e.paidBy));
+    }
     if (merged && merged.length > 0) {
-      // Build category map from merged groups
       const catMap = {};
       merged.forEach(m => m.categories.forEach(c => { catMap[c] = m.name; }));
       exps = exps.map(e => ({
@@ -65,32 +70,33 @@ export default function Overview() {
 
   const calcKpiValue = (kpi) => {
     const cur = kpi.currency || displayCurrency;
-    const exps = getExpensesByCategories(kpi.categories, kpi.mergedCategories);
+    const persons = kpi.persons || [];
+    const exps = getExpensesByCategories(kpi.categories, kpi.mergedCategories, kpi.type === 'person_balance' ? [] : persons);
 
     let result;
     switch (kpi.type) {
-      case 'total': {
-        result = exps.reduce((sum, e) => sum + convertAmount(e.amount, e.exchangeRate, cur), 0);
-        break;
-      }
+      case 'total':
       case 'category_total': {
         result = exps.reduce((sum, e) => sum + convertAmount(e.amount, e.exchangeRate, cur), 0);
         break;
       }
-      case 'daily_avg': {
-        const total = exps.reduce((sum, e) => sum + convertAmount(e.amount, e.exchangeRate, cur), 0);
-        const days = new Set(exps.map(e => e.date).filter(Boolean));
-        result = days.size > 0 ? total / days.size : 0;
-        break;
-      }
+      case 'daily_avg':
       case 'category_daily_avg': {
         const total = exps.reduce((sum, e) => sum + convertAmount(e.amount, e.exchangeRate, cur), 0);
         const days = new Set(exps.map(e => e.date).filter(Boolean));
         result = days.size > 0 ? total / days.size : 0;
         break;
       }
-      case 'count': return exps.length;
-      case 'category_count': return exps.length;
+      case 'count':
+      case 'category_count':
+        return exps.length;
+      case 'person_balance': {
+        if (!persons.length || !participants.length) return 0;
+        const allExps = getExpensesByCategories(kpi.categories, kpi.mergedCategories, []);
+        const { balances } = calculateDebts(allExps, participants, payments);
+        result = persons.reduce((sum, p) => sum + (balances[p] || 0), 0);
+        break;
+      }
       default: return 0;
     }
     return isNaN(result) ? 0 : result;
@@ -98,7 +104,7 @@ export default function Overview() {
 
   const getChartData = (chart) => {
     const cur = chart.currency || displayCurrency;
-    const exps = getExpensesByCategories(chart.categories, chart.mergedCategories);
+    const exps = getExpensesByCategories(chart.categories, chart.mergedCategories, chart.persons || []);
     const grouped = {};
     exps.forEach(e => {
       const cat = e.displayCategory || e.category || 'Sonstiges';
@@ -142,7 +148,7 @@ export default function Overview() {
     await saveKpis(newKpis);
     setShowKpiModal(false);
     setEditKpi(null);
-    setKpiForm({ type: 'total', label: '', categories: [], currency: displayCurrency, mergedCategories: [] });
+    setKpiForm({ type: 'total', label: '', categories: [], currency: displayCurrency, mergedCategories: [], persons: [] });
   };
 
   const handleSaveChart = async () => {
@@ -152,7 +158,7 @@ export default function Overview() {
     await saveCharts(newCharts);
     setShowChartModal(false);
     setEditChart(null);
-    setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, mergedCategories: [] });
+    setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, mergedCategories: [], persons: [] });
   };
 
   const deleteKpi = async (id) => {
@@ -179,6 +185,7 @@ export default function Overview() {
     category_daily_avg: 'Kategorie-Tagesdurchschnitt',
     count: 'Anzahl Ausgaben',
     category_count: 'Kategorie-Anzahl',
+    ...(isShared ? { person_balance: 'Personen-Bilanz (+/-)' } : {}),
   };
 
   const kpiTypeIcons = {
@@ -188,6 +195,7 @@ export default function Overview() {
     category_daily_avg: Calendar,
     count: TrendingUp,
     category_count: TrendingUp,
+    person_balance: Users,
   };
 
   const s = {
@@ -318,6 +326,19 @@ export default function Overview() {
                 </div>
               </div>
 
+              {isShared && participants.length > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <label style={s.label}>Personen (leer = alle)</label>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {participants.map(p => (
+                      <button key={p} onClick={() => setForm(prev => ({ ...prev, persons: (prev.persons || []).includes(p) ? prev.persons.filter(x => x !== p) : [...(prev.persons || []), p] }))} style={s.badge((form.persons || []).includes(p))}>
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {!isKpi && (
                 <div style={{ marginBottom: 14 }}>
                   <label style={{ ...s.label, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -357,7 +378,7 @@ export default function Overview() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => {
-              setKpiForm({ type: 'total', label: '', categories: [], currency: displayCurrency, mergedCategories: [] });
+              setKpiForm({ type: 'total', label: '', categories: [], currency: displayCurrency, mergedCategories: [], persons: [] });
               setEditKpi(null);
               setShowKpiModal(true);
             }}
@@ -402,12 +423,15 @@ export default function Overview() {
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    style={{ fontSize: 22, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}
+                    style={{ fontSize: 22, fontWeight: 800, marginBottom: 4,
+                      color: kpi.type === 'person_balance' ? (val > 0.01 ? '#16a34a' : val < -0.01 ? '#dc2626' : '#64748b') : '#1e293b',
+                    }}
                   >
-                    {isCount ? Math.round(val) : `${sym} ${val.toFixed(2)}`}
+                    {isCount ? Math.round(val) : kpi.type === 'person_balance' ? `${val > 0 ? '+' : ''}${sym} ${val.toFixed(2)}` : `${sym} ${val.toFixed(2)}`}
                   </motion.div>
                   <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>
                     {kpi.label || kpiTypeLabels[kpi.type]}
+                    {kpi.persons?.length > 0 && <span style={{ display: 'block', fontSize: 11, marginTop: 2, opacity: 0.8 }}>{kpi.persons.join(', ')}</span>}
                   </div>
                 </motion.div>
               );
@@ -424,7 +448,7 @@ export default function Overview() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => {
-              setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, mergedCategories: [] });
+              setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, mergedCategories: [], persons: [] });
               setEditChart(null);
               setShowChartModal(true);
             }}
