@@ -1009,7 +1009,13 @@ export default function SharedVacation() {
                                   <div style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Keine Beteiligungen</div>
                                 ) : (
                                   stats.owedExpenses.map((exp, j) => {
-                                    const share = (parseFloat(exp.amount) || 0) / (exp.paidFor?.length || 1);
+                                    const amount = parseFloat(exp.amount) || 0;
+                                    let share;
+                                    if (exp.paidForAmounts && exp.paidForAmounts[p] !== undefined) {
+                                      share = parseFloat(exp.paidForAmounts[p]) || 0;
+                                    } else {
+                                      share = amount / (exp.paidFor?.length || 1);
+                                    }
                                     return (
                                       <div key={j} style={styles.expenseItem}>
                                         <span>{exp.name || 'Ohne Name'} (von {exp.paidBy})</span>
