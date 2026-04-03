@@ -124,10 +124,10 @@ export default function Overview() {
       labels,
       datasets: [{
         data: values,
-        backgroundColor: isPie ? COLORS_SOFT : labels.map((_, i) => COLORS[i % COLORS.length] + 'dd'),
+        backgroundColor: isPie ? COLORS_SOFT : labels.map((_, i) => COLORS[i % COLORS.length] + 'cc'),
         borderColor: isPie ? '#ffffff' : labels.map((_, i) => COLORS[i % COLORS.length]),
-        borderWidth: isPie ? 3 : 0,
-        borderRadius: isPie ? 0 : 10,
+        borderWidth: isPie ? 3 : 1,
+        borderRadius: isPie ? 0 : 6,
         hoverBackgroundColor: labels.map((_, i) => COLORS[i % COLORS.length]),
         hoverOffset: isPie ? 8 : 0,
       }],
@@ -631,20 +631,26 @@ export default function Overview() {
             const chartOptions = {
               responsive: true,
               maintainAspectRatio: true,
+              aspectRatio: isPie ? 1 : isHorizontal ? Math.max(1, 1.6 - labels.length * 0.08) : Math.max(1, 1.8 - labels.length * 0.06),
               indexAxis: isHorizontal ? 'y' : 'x',
               animation: { duration: 600, easing: 'easeOutQuart' },
+              layout: {
+                padding: { top: isPie ? 4 : 16, bottom: 4, left: 4, right: isPie ? 4 : 16 },
+              },
               plugins: {
                 legend: {
                   display: isPie || isStacked || isBalance,
                   position: isPie ? 'bottom' : 'top',
+                  align: 'center',
                   labels: {
-                    padding: 16, usePointStyle: true, pointStyleWidth: 10,
+                    padding: 20, usePointStyle: true, pointStyleWidth: 10,
+                    boxWidth: 12, boxHeight: 12,
                     font: { size: 12, weight: 500, family: "'Inter', system-ui, sans-serif" },
                     color: '#475569',
                   },
                 },
                 tooltip: {
-                  backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                  backgroundColor: 'rgba(15, 23, 42, 0.92)',
                   titleFont: { size: 13, weight: 600 },
                   bodyFont: { size: 12 },
                   padding: 12,
@@ -668,9 +674,11 @@ export default function Overview() {
                 },
                 datalabels: chart.showValues ? {
                   color: isPie ? '#fff' : '#334155',
-                  font: { weight: 700, size: isPie ? 12 : 11, family: "'Inter', system-ui, sans-serif" },
+                  font: { weight: 700, size: isPie ? 11 : 10, family: "'Inter', system-ui, sans-serif" },
                   textShadowColor: isPie ? 'rgba(0,0,0,0.3)' : undefined,
                   textShadowBlur: isPie ? 4 : 0,
+                  clamp: true,
+                  clip: false,
                   formatter: (value) => {
                     if (value <= 0) return '';
                     if (isPie && chart.showPercent) {
@@ -681,22 +689,66 @@ export default function Overview() {
                   },
                   anchor: isPie ? 'center' : 'end',
                   align: isPie ? 'center' : isHorizontal ? 'right' : 'top',
+                  offset: isPie ? 0 : 4,
+                  display: (ctx) => {
+                    if (isPie) return true;
+                    const val = ctx.dataset.data[ctx.dataIndex];
+                    const meta = ctx.chart.getDatasetMeta(ctx.datasetIndex);
+                    const bar = meta.data[ctx.dataIndex];
+                    if (!bar) return val > 0;
+                    const barSize = isHorizontal ? Math.abs(bar.width || 0) : Math.abs(bar.height || 0);
+                    return val > 0 && barSize > 20;
+                  },
                 } : { display: false },
               },
               scales: !isPie ? {
                 x: {
                   stacked: isStacked,
                   beginAtZero: isHorizontal,
-                  grid: { display: isHorizontal, color: '#f1f5f920', drawBorder: false },
-                  ticks: { font: { size: 11, weight: 500 }, color: '#64748b', padding: 4 },
-                  border: { display: false },
+                  grid: {
+                    display: true,
+                    color: isHorizontal ? '#e2e8f0' : '#f1f5f9',
+                    lineWidth: (ctx) => ctx.tick?.value === 0 ? 2 : 1,
+                    drawOnChartArea: true,
+                  },
+                  ticks: {
+                    font: { size: 11, weight: 500 },
+                    color: '#64748b',
+                    padding: 8,
+                    maxRotation: isHorizontal ? 0 : 45,
+                    autoSkip: true,
+                    ...(isHorizontal ? {
+                      callback: (value) => `${sym}${value}`,
+                    } : {}),
+                  },
+                  border: {
+                    display: true,
+                    color: '#cbd5e1',
+                    width: 1,
+                  },
                 },
                 y: {
                   stacked: isStacked,
                   beginAtZero: !isHorizontal,
-                  grid: { display: !isHorizontal, color: '#f1f5f920', drawBorder: false },
-                  ticks: { font: { size: 11, weight: 500 }, color: '#64748b', padding: 4 },
-                  border: { display: false },
+                  grid: {
+                    display: true,
+                    color: !isHorizontal ? '#e2e8f0' : '#f1f5f9',
+                    lineWidth: (ctx) => ctx.tick?.value === 0 ? 2 : 1,
+                    drawOnChartArea: true,
+                  },
+                  ticks: {
+                    font: { size: 11, weight: 500 },
+                    color: '#64748b',
+                    padding: 8,
+                    ...(!isHorizontal ? {
+                      callback: (value) => `${sym}${value}`,
+                    } : {}),
+                  },
+                  border: {
+                    display: true,
+                    color: '#cbd5e1',
+                    width: 1,
+                  },
                 },
               } : undefined,
             };
@@ -737,8 +789,8 @@ export default function Overview() {
 
                 {hasData ? (
                   <div style={{
-                    maxHeight: isHorizontal ? Math.max(220, labels.length * 44 + 60) : 320,
                     padding: isPie ? '8px 0' : '4px 0',
+                    position: 'relative',
                   }}>
                     {isPie ? (
                       <Doughnut
