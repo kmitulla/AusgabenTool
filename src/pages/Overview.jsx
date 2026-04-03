@@ -802,7 +802,7 @@ export default function Overview() {
 
             return (
               <motion.div
-                key={chart.id}
+                key={`${chart.id}-${chart.chartSize || 'medium'}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
@@ -847,12 +847,13 @@ export default function Overview() {
                   }}>
                     {isPie ? (
                       <Doughnut
+                        key={`doughnut-${chart.id}-${chart.chartSize || 'medium'}`}
                         data={{ labels, datasets }}
                         options={{ ...chartOptions, cutout: '35%' }}
                         plugins={chart.showValues ? [ChartDataLabels] : []}
                       />
                     ) : (
-                      <Bar data={barData} options={chartOptions} plugins={chart.showValues ? [ChartDataLabels] : []} />
+                      <Bar key={`bar-${chart.id}-${chart.chartSize || 'medium'}`} data={barData} options={chartOptions} plugins={chart.showValues ? [ChartDataLabels] : []} />
                     )}
                   </div>
                 ) : (
