@@ -32,6 +32,7 @@ export default function Expenses() {
   const [editExpense, setEditExpense] = useState(null);
   const [editData, setEditData] = useState({});
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleteCategoryConfirm, setDeleteCategoryConfirm] = useState(null);
 
   const inputRefs = useRef({});
   const formTopRef = useRef(null);
@@ -130,6 +131,14 @@ export default function Expenses() {
     if (!currentVacation || categories.includes(cat)) return;
     await updateVacation(currentVacation.id, { categories: [...categories, cat] });
     await refreshVacation();
+  };
+
+  const deleteCategory = async (cat) => {
+    if (!currentVacation) return;
+    await updateVacation(currentVacation.id, { categories: categories.filter(c => c !== cat) });
+    setFilterCategory(prev => prev.filter(c => c !== cat));
+    await refreshVacation();
+    setDeleteCategoryConfirm(null);
   };
 
   const handleImport = async (fromVacId) => {
@@ -627,21 +636,34 @@ export default function Expenses() {
 
                 <div style={{ marginBottom: 10 }}>
                   <label style={s.label}>Kategorie</label>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                     {categories.map(cat => (
-                      <button
-                        key={cat}
-                        onClick={() => setFilterCategory(prev =>
-                          prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
-                        )}
-                        style={{
-                          ...s.badge, cursor: 'pointer', border: 'none',
-                          background: filterCategory.includes(cat) ? '#0ea5e9' : '#f0f9ff',
-                          color: filterCategory.includes(cat) ? '#fff' : '#0ea5e9',
-                        }}
-                      >
-                        {cat}
-                      </button>
+                      <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+                        <button
+                          onClick={() => setFilterCategory(prev =>
+                            prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+                          )}
+                          style={{
+                            ...s.badge, cursor: 'pointer', border: 'none',
+                            background: filterCategory.includes(cat) ? '#0ea5e9' : '#f0f9ff',
+                            color: filterCategory.includes(cat) ? '#fff' : '#0ea5e9',
+                            borderRadius: '20px 4px 4px 20px', paddingRight: 6,
+                          }}
+                        >
+                          {cat}
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setDeleteCategoryConfirm(cat); }}
+                          style={{
+                            background: '#fef2f2', color: '#ef4444', border: 'none', cursor: 'pointer',
+                            borderRadius: '4px 20px 20px 4px', padding: '5px 8px', fontSize: 11, fontWeight: 700,
+                            display: 'flex', alignItems: 'center', transition: 'all 0.2s',
+                          }}
+                          title={`${cat} löschen`}
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -979,6 +1001,35 @@ export default function Expenses() {
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <motion.button whileTap={{ scale: 0.98 }} onClick={handleEdit} style={{ ...s.btn, ...s.btnPrimary, flex: 1 }}>Speichern</motion.button>
                 <button onClick={() => setEditExpense(null)} style={{ ...s.btn, background: '#f1f5f9', color: '#64748b' }}>Abbrechen</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Category Confirmation */}
+      <AnimatePresence>
+        {deleteCategoryConfirm && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={s.overlay} onClick={() => setDeleteCategoryConfirm(null)}>
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} style={{ background: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+              <h3 style={{ margin: '0 0 12px', color: '#1e293b', fontSize: 17 }}>Kategorie löschen?</h3>
+              <p style={{ fontSize: 14, color: '#64748b', marginBottom: 8, lineHeight: 1.5 }}>
+                Möchtest du die Kategorie <strong style={{ color: '#0ea5e9' }}>"{deleteCategoryConfirm}"</strong> wirklich löschen?
+              </p>
+              <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 20 }}>
+                Bereits erfasste Ausgaben mit dieser Kategorie behalten ihre Zuordnung.
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => deleteCategory(deleteCategoryConfirm)}
+                  style={{ ...s.btn, flex: 1, background: '#ef4444', color: '#fff' }}
+                >
+                  <Trash2 size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} /> Löschen
+                </motion.button>
+                <button onClick={() => setDeleteCategoryConfirm(null)} style={{ ...s.btn, flex: 1, background: '#f1f5f9', color: '#64748b' }}>
+                  Abbrechen
+                </button>
               </div>
             </motion.div>
           </motion.div>
