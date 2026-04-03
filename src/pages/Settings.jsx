@@ -4,7 +4,7 @@ import { updateVacation } from '../utils/db';
 import { updateUser } from '../utils/db';
 import { useVacation } from '../contexts/VacationContext';
 import { useAuth } from '../contexts/AuthContext';
-import { exportAsImage, exportAsExcel } from '../utils/exportUtils';
+import { exportAsImage, exportSoloVacationExcel } from '../utils/exportUtils';
 import { Settings as SettingsIcon, DollarSign, Eye, EyeOff, Users, Download, Key, LogOut, ChevronDown, ChevronUp, Plus, Trash2, Save, X, Image, FileSpreadsheet, UserCog, User, Info, Edit3, Calendar } from 'lucide-react';
 
 const styles = {
@@ -565,14 +565,13 @@ export default function Settings({ onAdminPanel, onLogout }) {
     exportAsImage('export-content', `${currentVacation?.name || 'urlaub'}.png`);
   };
   const handleExportExcel = () => {
-    const data = (expenses || []).map(e => ({
-      Ausgabe: e.name,
-      Betrag: e.amount,
-      Währung: e.currency,
-      Kategorie: e.category,
-      Datum: e.date,
-    }));
-    exportAsExcel(data, `${currentVacation?.name || 'urlaub'}.xlsx`);
+    exportSoloVacationExcel(
+      expenses,
+      `${currentVacation?.name || 'urlaub'}.xlsx`,
+      currentVacation?.settings?.currency || 'EUR',
+      currentVacation?.settings?.exchangeRates || { EUR: 1 },
+      currentVacation?.name || 'Urlaub',
+    );
   };
 
   // --- Logout ---

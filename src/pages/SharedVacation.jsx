@@ -502,7 +502,7 @@ export default function SharedVacation() {
   };
 
   const handleExportExcel = () => {
-    exportSharedVacationExcel(expenses, settlements, participants, `Gemeinsamer_Urlaub_${currentVacation.name || 'Export'}.xlsx`, personStats, displayCurrency);
+    exportSharedVacationExcel(expenses, settlements, participants, `Gemeinsamer_Urlaub_${currentVacation.name || 'Export'}.xlsx`, personStats, displayCurrency, payments, currentVacation.name || 'Export');
   };
 
   const handleExportImage = async () => {
