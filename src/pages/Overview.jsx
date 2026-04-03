@@ -5,7 +5,7 @@ import { Pie, Doughnut, Bar } from 'react-chartjs-2';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { updateVacation, calculateDebts } from '../utils/db';
 import { useVacation } from '../contexts/VacationContext';
-import { Plus, Trash2, Edit3, TrendingUp, DollarSign, Calendar, BarChart3, PieChart, X, Eye, EyeOff, Users, AlignLeft, Percent, Maximize2, Minimize2 } from 'lucide-react';
+import { Plus, Trash2, Edit3, TrendingUp, DollarSign, Calendar, BarChart3, PieChart, X, Eye, EyeOff, Users, AlignLeft, Percent, Maximize2, Minimize2, CalendarDays } from 'lucide-react';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, Filler);
 
@@ -22,7 +22,7 @@ export default function Overview() {
   const [editKpi, setEditKpi] = useState(null);
   const [editChart, setEditChart] = useState(null);
   const [kpiForm, setKpiForm] = useState({ type: 'total', label: '', categories: [], currency: 'EUR', mergedCategories: [], persons: [] });
-  const [chartForm, setChartForm] = useState({ type: 'pie', label: '', categories: [], currency: 'EUR', showValues: true, showPercent: false, mergedCategories: [], persons: [], stackMode: 'category_person', chartSize: 'medium' });
+  const [chartForm, setChartForm] = useState({ type: 'pie', label: '', categories: [], currency: 'EUR', showValues: true, showPercent: false, mergedCategories: [], persons: [], stackMode: 'category_person', chartSize: 'medium', timelineMode: 'total_per_day' });
   const [mergeInput, setMergeInput] = useState({ name: '', categories: [] });
 
   const rates = currentVacation?.settings?.exchangeRates || { EUR: 1 };
@@ -45,6 +45,24 @@ export default function Overview() {
     const targetRate = rates[toCurrency] || 1;
     return baseAmount * targetRate;
   };
+
+  const getVacationDateRange = useMemo(() => {
+    const manualStart = currentVacation?.settings?.vacationStartDate;
+    const manualEnd = currentVacation?.settings?.vacationEndDate;
+    const expDates = (expenses || []).map(e => e.date).filter(Boolean).sort();
+    const start = manualStart || expDates[0] || null;
+    const end = manualEnd || expDates[expDates.length - 1] || null;
+    if (!start || !end) return { start: null, end: null, days: 0, allDates: [] };
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const diffMs = endDate - startDate;
+    const days = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1);
+    const allDates = [];
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      allDates.push(d.toISOString().split('T')[0]);
+    }
+    return { start, end, days, allDates };
+  }, [currentVacation?.settings?.vacationStartDate, currentVacation?.settings?.vacationEndDate, expenses]);
 
   const getExpensesByCategories = (selectedCats, merged, persons) => {
     let exps = expenses || [];
@@ -84,10 +102,12 @@ export default function Overview() {
       case 'daily_avg':
       case 'category_daily_avg': {
         const total = exps.reduce((sum, e) => sum + convertAmount(e.amount, e.exchangeRate, cur), 0);
-        const days = new Set(exps.map(e => e.date).filter(Boolean));
-        result = days.size > 0 ? total / days.size : 0;
+        const days = getVacationDateRange.days;
+        result = days > 0 ? total / days : 0;
         break;
       }
+      case 'vacation_days':
+        return getVacationDateRange.days;
       case 'count':
       case 'category_count':
         return exps.length;
@@ -234,6 +254,64 @@ export default function Overview() {
     };
   };
 
+  const getTimelineChartData = (chart) => {
+    const cur = chart.currency || displayCurrency;
+    const sym = currencySymbols[cur] || cur;
+    const exps = getExpensesByCategories(chart.categories, chart.mergedCategories, chart.persons || []);
+    const { allDates } = getVacationDateRange;
+    if (!allDates.length) return { labels: [], datasets: [], sym };
+
+    const mode = chart.timelineMode || 'total_per_day';
+    const labels = allDates.map(d => {
+      const date = new Date(d);
+      return `${date.getDate()}.${date.getMonth() + 1}.`;
+    });
+
+    if (mode === 'total_per_day') {
+      const dailyTotals = allDates.map(date =>
+        Math.round(exps.filter(e => e.date === date).reduce((sum, e) => sum + convertAmount(e.amount, e.exchangeRate, cur), 0) * 100) / 100
+      );
+      return {
+        labels,
+        datasets: [{
+          label: 'Gesamt pro Tag',
+          data: dailyTotals,
+          backgroundColor: '#3b82f6cc',
+          borderColor: '#3b82f6',
+          borderWidth: 1,
+          borderRadius: 6,
+        }],
+        sym,
+      };
+    } else if (mode === 'person_per_day') {
+      const filterPersons = chart.persons || [];
+      const personsToShow = filterPersons.length > 0 ? filterPersons : participants;
+      const datasets = personsToShow.map((person, i) => ({
+        label: person,
+        data: allDates.map(date =>
+          Math.round(exps.filter(e => e.date === date && e.paidBy === person).reduce((sum, e) => sum + convertAmount(e.amount, e.exchangeRate, cur), 0) * 100) / 100
+        ),
+        backgroundColor: COLORS[i % COLORS.length],
+        borderRadius: 4,
+      }));
+      return { labels, datasets, sym };
+    } else if (mode === 'category_per_day') {
+      const catSet = new Set();
+      exps.forEach(e => catSet.add(e.displayCategory || e.category || 'Sonstiges'));
+      const cats = [...catSet];
+      const datasets = cats.map((cat, i) => ({
+        label: cat,
+        data: allDates.map(date =>
+          Math.round(exps.filter(e => e.date === date && (e.displayCategory || e.category || 'Sonstiges') === cat).reduce((sum, e) => sum + convertAmount(e.amount, e.exchangeRate, cur), 0) * 100) / 100
+        ),
+        backgroundColor: COLORS[i % COLORS.length],
+        borderRadius: 4,
+      }));
+      return { labels, datasets, sym };
+    }
+    return { labels: [], datasets: [], sym };
+  };
+
   const saveKpis = async (newKpis) => {
     await updateVacation(currentVacation.id, { kpis: newKpis });
     await refreshVacation();
@@ -256,13 +334,13 @@ export default function Overview() {
 
   const handleSaveChart = async () => {
     const item = { ...chartForm, id: editChart?.id || genId() };
-    const typeLabels = { pie: 'Kreisdiagramm', column: 'Säulendiagramm', bar: 'Balkendiagramm', stacked_column: 'Gestapeltes Säulendiagramm', stacked_bar: 'Gestapeltes Balkendiagramm', balance_column: 'Personen-Bilanz (Säulen)', balance_bar: 'Personen-Bilanz (Balken)' };
+    const typeLabels = { pie: 'Kreisdiagramm', column: 'Säulendiagramm', bar: 'Balkendiagramm', stacked_column: 'Gestapeltes Säulendiagramm', stacked_bar: 'Gestapeltes Balkendiagramm', balance_column: 'Personen-Bilanz (Säulen)', balance_bar: 'Personen-Bilanz (Balken)', timeline_column: 'Zeitverlauf (Säulen)', timeline_bar: 'Zeitverlauf (Balken)' };
     if (!item.label) item.label = typeLabels[item.type] || 'Diagramm';
     const newCharts = editChart ? charts.map(c => c.id === editChart.id ? item : c) : [...charts, item];
     await saveCharts(newCharts);
     setShowChartModal(false);
     setEditChart(null);
-    setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, mergedCategories: [], persons: [], chartSize: 'medium' });
+    setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, mergedCategories: [], persons: [], chartSize: 'medium', timelineMode: 'total_per_day' });
   };
 
   const deleteKpi = async (id) => {
@@ -289,6 +367,7 @@ export default function Overview() {
     category_daily_avg: 'Kategorie-Tagesdurchschnitt',
     count: 'Anzahl Ausgaben',
     category_count: 'Kategorie-Anzahl',
+    vacation_days: 'Urlaubstage',
     ...(isShared ? { person_balance: 'Personen-Bilanz (+/-)' } : {}),
   };
 
@@ -299,6 +378,7 @@ export default function Overview() {
     category_daily_avg: Calendar,
     count: TrendingUp,
     category_count: TrendingUp,
+    vacation_days: CalendarDays,
     person_balance: Users,
   };
 
@@ -402,6 +482,8 @@ export default function Overview() {
                         ['stacked_column', 'Gest. Säulen', BarChart3],
                         ['stacked_bar', 'Gest. Balken', AlignLeft],
                         ...(isShared ? [['balance_column', 'Bilanz Säulen', Users], ['balance_bar', 'Bilanz Balken', Users]] : []),
+                        ['timeline_column', 'Zeitverlauf', CalendarDays],
+                        ['timeline_bar', 'Zeitverlauf H.', CalendarDays],
                       ].map(([type, label, Icon]) => (
                         <button key={type} onClick={() => setForm(p => ({ ...p, type }))} style={{
                           padding: '8px 12px', borderRadius: 10, border: 'none', fontWeight: 600, fontSize: 12, cursor: 'pointer',
@@ -414,6 +496,31 @@ export default function Overview() {
                       ))}
                     </div>
                   </div>
+                  {(form.type === 'timeline_column' || form.type === 'timeline_bar') && (
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={s.label}>Zeitverlauf-Modus</label>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {[
+                          ['total_per_day', 'Gesamt pro Tag'],
+                          ...(isShared ? [['person_per_day', 'Person pro Tag']] : []),
+                          ['category_per_day', 'Kategorie pro Tag'],
+                        ].map(([mode, label]) => (
+                          <button key={mode} onClick={() => setForm(p => ({ ...p, timelineMode: mode }))} style={{
+                            ...s.btn, flex: 1, fontSize: 12,
+                            background: (form.timelineMode || 'total_per_day') === mode ? '#8b5cf6' : '#f1f5f9',
+                            color: (form.timelineMode || 'total_per_day') === mode ? '#fff' : '#64748b',
+                          }}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
+                        {getVacationDateRange.days > 0
+                          ? `Urlaubsdauer: ${getVacationDateRange.days} Tage (${new Date(getVacationDateRange.start).toLocaleDateString('de-DE')} – ${new Date(getVacationDateRange.end).toLocaleDateString('de-DE')})`
+                          : 'Keine Ausgaben vorhanden'}
+                      </div>
+                    </div>
+                  )}
                   {(form.type === 'stacked_column' || form.type === 'stacked_bar') && isShared && (
                     <div style={{ marginBottom: 14 }}>
                       <label style={s.label}>Stapel-Modus</label>
@@ -575,7 +682,7 @@ export default function Overview() {
               const color = COLORS[i % COLORS.length];
               const Icon = kpiTypeIcons[kpi.type] || TrendingUp;
               const sym = currencySymbols[kpi.currency || displayCurrency] || kpi.currency || '€';
-              const isCount = kpi.type === 'count' || kpi.type === 'category_count';
+              const isCount = kpi.type === 'count' || kpi.type === 'category_count' || kpi.type === 'vacation_days';
 
               return (
                 <motion.div
@@ -622,7 +729,7 @@ export default function Overview() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => {
-              setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, mergedCategories: [], persons: [], chartSize: 'medium' });
+              setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, mergedCategories: [], persons: [], chartSize: 'medium', timelineMode: 'total_per_day' });
               setEditChart(null);
               setShowChartModal(true);
             }}
@@ -642,16 +749,18 @@ export default function Overview() {
           charts.map((chart, i) => {
             const isStacked = chart.type === 'stacked_column' || chart.type === 'stacked_bar';
             const isBalance = chart.type === 'balance_column' || chart.type === 'balance_bar';
-            const isHorizontal = chart.type === 'bar' || chart.type === 'stacked_bar' || chart.type === 'balance_bar';
+            const isTimeline = chart.type === 'timeline_column' || chart.type === 'timeline_bar';
+            const isTimelineStacked = isTimeline && (chart.timelineMode === 'person_per_day' || chart.timelineMode === 'category_per_day');
+            const isHorizontal = chart.type === 'bar' || chart.type === 'stacked_bar' || chart.type === 'balance_bar' || chart.type === 'timeline_bar';
             const isPie = chart.type === 'pie';
-            const chartData = isBalance ? getBalanceChartData(chart) : isStacked ? getStackedChartData(chart) : getChartData(chart);
+            const chartData = isTimeline ? getTimelineChartData(chart) : isBalance ? getBalanceChartData(chart) : isStacked ? getStackedChartData(chart) : getChartData(chart);
             const { labels, datasets, sym } = chartData;
             const hasData = labels.length > 0;
 
             const totalForPercent = isPie ? datasets[0]?.data?.reduce((a, b) => a + b, 0) || 1 : 1;
 
             const sizeMultiplier = { small: 1.4, medium: 1.0, large: 0.65, xlarge: 0.45 }[chart.chartSize || 'medium'];
-            const baseAspect = isPie ? 1 : isHorizontal ? Math.max(0.6, 1.6 - labels.length * 0.08) : Math.max(0.7, 1.8 - labels.length * 0.06);
+            const baseAspect = isPie ? 1 : isTimeline ? Math.max(0.5, 1.4 - labels.length * 0.03) : isHorizontal ? Math.max(0.6, 1.6 - labels.length * 0.08) : Math.max(0.7, 1.8 - labels.length * 0.06);
             const chartOptions = {
               responsive: true,
               maintainAspectRatio: true,
@@ -663,7 +772,7 @@ export default function Overview() {
               },
               plugins: {
                 legend: {
-                  display: isPie || isStacked || isBalance,
+                  display: isPie || isStacked || isBalance || isTimelineStacked,
                   position: isPie ? 'bottom' : 'top',
                   align: 'center',
                   labels: {
@@ -726,12 +835,12 @@ export default function Overview() {
                   },
                   align: (ctx) => {
                     if (isPie) return 'center';
-                    if (isStacked) return 'center';
+                    if (isStacked || isTimelineStacked) return 'center';
                     const val = ctx.dataset.data[ctx.dataIndex];
                     if (isHorizontal) return val < 0 ? 'left' : 'right';
                     return val < 0 ? 'bottom' : 'top';
                   },
-                  offset: isPie ? 0 : (isStacked ? 0 : 4),
+                  offset: isPie ? 0 : ((isStacked || isTimelineStacked) ? 0 : 4),
                   display: (ctx) => {
                     if (isPie) return true;
                     const val = ctx.dataset.data[ctx.dataIndex];
@@ -746,7 +855,7 @@ export default function Overview() {
               },
               scales: !isPie ? {
                 x: {
-                  stacked: isStacked,
+                  stacked: isStacked || isTimelineStacked,
                   beginAtZero: isHorizontal,
                   grid: {
                     display: true,
@@ -771,7 +880,7 @@ export default function Overview() {
                   },
                 },
                 y: {
-                  stacked: isStacked,
+                  stacked: isStacked || isTimelineStacked,
                   beginAtZero: !isHorizontal,
                   grid: {
                     display: true,
@@ -796,7 +905,7 @@ export default function Overview() {
               } : undefined,
             };
 
-            const barData = (isStacked || isBalance)
+            const barData = (isStacked || isBalance || isTimeline)
               ? { labels, datasets }
               : { labels, datasets: [{ ...datasets[0], label: chart.label, borderRadius: 8 }] };
 
@@ -835,7 +944,7 @@ export default function Overview() {
                     }} style={s.btnGhost}>
                       {chart.showValues ? <Eye size={16} /> : <EyeOff size={16} />}
                     </button>
-                    <button onClick={() => { setChartForm({ ...chart, showPercent: chart.showPercent || false, stackMode: chart.stackMode || 'category_person', chartSize: chart.chartSize || 'medium' }); setEditChart(chart); setShowChartModal(true); }} style={s.btnGhost}><Edit3 size={14} /></button>
+                    <button onClick={() => { setChartForm({ ...chart, showPercent: chart.showPercent || false, stackMode: chart.stackMode || 'category_person', chartSize: chart.chartSize || 'medium', timelineMode: chart.timelineMode || 'total_per_day' }); setEditChart(chart); setShowChartModal(true); }} style={s.btnGhost}><Edit3 size={14} /></button>
                     <button onClick={() => deleteChart(chart.id)} style={s.btnGhost}><Trash2 size={14} /></button>
                   </div>
                 </div>

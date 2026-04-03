@@ -5,7 +5,7 @@ import { updateUser } from '../utils/db';
 import { useVacation } from '../contexts/VacationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { exportAsImage, exportAsExcel } from '../utils/exportUtils';
-import { Settings as SettingsIcon, DollarSign, Eye, EyeOff, Users, Download, Key, LogOut, ChevronDown, ChevronUp, Plus, Trash2, Save, X, Image, FileSpreadsheet, UserCog, User, Info, Edit3 } from 'lucide-react';
+import { Settings as SettingsIcon, DollarSign, Eye, EyeOff, Users, Download, Key, LogOut, ChevronDown, ChevronUp, Plus, Trash2, Save, X, Image, FileSpreadsheet, UserCog, User, Info, Edit3, Calendar } from 'lucide-react';
 
 const styles = {
   container: {
@@ -383,6 +383,8 @@ export default function Settings({ onAdminPanel, onLogout }) {
   const [vacationName, setVacationName] = useState(currentVacation?.name || '');
   const [showRateInfo, setShowRateInfo] = useState(false);
   const [percentageSplits, setPercentageSplits] = useState(settings.percentageSplits || false);
+  const [vacationStartDate, setVacationStartDate] = useState(settings.vacationStartDate || '');
+  const [vacationEndDate, setVacationEndDate] = useState(settings.vacationEndDate || '');
 
   const [toast, setToast] = useState('');
   const [saving, setSaving] = useState(false);
@@ -398,6 +400,8 @@ export default function Settings({ onAdminPanel, onLogout }) {
         setSharedMode(s.sharedMode || false);
         setParticipants(s.participants || []);
         setPercentageSplits(s.percentageSplits || false);
+        setVacationStartDate(s.vacationStartDate || '');
+        setVacationEndDate(s.vacationEndDate || '');
       }
     }
   }, [currentVacation]);
@@ -419,6 +423,8 @@ export default function Settings({ onAdminPanel, onLogout }) {
         sharedMode,
         participants,
         percentageSplits,
+        vacationStartDate,
+        vacationEndDate,
         ...overrides,
       };
       await updateVacation(currentVacation.id, { settings: newSettings });
@@ -647,6 +653,57 @@ export default function Settings({ onAdminPanel, onLogout }) {
             >
               <Save size={16} />
             </button>
+          </div>
+        </Section>
+      </motion.div>
+
+      {/* Vacation Duration */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.04, duration: 0.35 }}
+      >
+        <Section icon={<Calendar size={18} color="#8b5cf6" />} title="Urlaubsdauer">
+          <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.75rem', lineHeight: 1.5 }}>
+            Optional: Lege Start- und Enddatum fest. Wenn leer, wird automatisch der erste bis letzte Ausgabentag verwendet.
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569', minWidth: '50px' }}>Von</label>
+            <input
+              style={styles.input}
+              type="date"
+              value={vacationStartDate}
+              onChange={(e) => setVacationStartDate(e.target.value)}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569', minWidth: '50px' }}>Bis</label>
+            <input
+              style={styles.input}
+              type="date"
+              value={vacationEndDate}
+              onChange={(e) => setVacationEndDate(e.target.value)}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              style={{ ...styles.smallBtn('#10b981'), padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+              onClick={() => saveSettings({ vacationStartDate, vacationEndDate })}
+            >
+              <Save size={14} /> Speichern
+            </button>
+            {(vacationStartDate || vacationEndDate) && (
+              <button
+                style={{ ...styles.smallBtn('#ef4444'), padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                onClick={() => {
+                  setVacationStartDate('');
+                  setVacationEndDate('');
+                  saveSettings({ vacationStartDate: '', vacationEndDate: '' });
+                }}
+              >
+                <Trash2 size={14} /> Zurücksetzen
+              </button>
+            )}
           </div>
         </Section>
       </motion.div>
