@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import {
   Plus, Trash2, Edit3, MapPin, Calendar, Clock, Users, StickyNote,
   Check, X, ChevronDown, ChevronUp, Archive, RotateCcw, Download,
-  Euro, Search, Navigation
+  Euro, Search, Navigation, Map
 } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -93,7 +93,7 @@ const styles = {
     color: '#f1f5f9', fontSize: '0.9rem', outline: 'none', minHeight: '80px',
     resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box',
   },
-  row: { display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' },
+  row: { display: 'flex', gap: '0.75rem', marginBottom: '0.75rem', flexWrap: 'wrap' },
   field: { flex: 1, marginBottom: '0.75rem' },
   primaryBtn: {
     padding: '0.7rem 1.5rem', borderRadius: '12px', border: 'none',
@@ -229,6 +229,97 @@ function MapPicker({ lat, lng, onLocationChange, address, onAddressChange }) {
   );
 }
 
+// ─── Overview Map ────────────────────────────────────────
+const greenIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
+});
+const orangeIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
+});
+
+function OverviewMap({ destinations, onSelect, onClose }) {
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const [selected, setSelected] = useState(null);
+
+  useEffect(() => {
+    if (!mapRef.current || mapInstanceRef.current) return;
+    const withCoords = destinations.filter(d => d.lat && d.lng);
+    const center = withCoords.length > 0
+      ? [withCoords[0].lat, withCoords[0].lng]
+      : [48.2082, 16.3738];
+    const map = L.map(mapRef.current).setView(center, 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap',
+    }).addTo(map);
+    withCoords.forEach(dest => {
+      const icon = dest.completed ? greenIcon : orangeIcon;
+      const marker = L.marker([dest.lat, dest.lng], { icon }).addTo(map);
+      marker.on('click', () => setSelected(dest));
+    });
+    if (withCoords.length > 1) {
+      const bounds = L.latLngBounds(withCoords.map(d => [d.lat, d.lng]));
+      map.fitBounds(bounds, { padding: [40, 40] });
+    } else if (withCoords.length === 1) {
+      map.setView([withCoords[0].lat, withCoords[0].lng], 12);
+    }
+    mapInstanceRef.current = map;
+    return () => { map.remove(); mapInstanceRef.current = null; };
+  }, [destinations]);
+
+  const totalCost = selected ? (selected.costs || []).reduce((s, c) => s + (parseFloat(c.amount) || 0), 0) : 0;
+
+  return (
+    <motion.div
+      style={styles.overlay}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{ width: '100%', maxWidth: '800px', height: '85vh', display: 'flex', flexDirection: 'column', borderRadius: '20px', overflow: 'hidden', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <span style={{ color: '#f1f5f9', fontWeight: 600, fontSize: '1rem' }}><Map size={16} style={{ marginRight: '0.4rem', verticalAlign: '-2px' }} />Alle Urlaubsziele</span>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f97316', display: 'inline-block' }} /> Geplant</span>
+            <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} /> Erledigt</span>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+          </div>
+        </div>
+        <div ref={mapRef} style={{ flex: 1 }} />
+        <AnimatePresence>
+          {selected && (
+            <motion.div
+              initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
+              style={{ padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', background: 'rgba(15,23,42,0.95)' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}>
+                    <h4 style={{ margin: 0, color: '#f1f5f9', fontSize: '1rem' }}>{selected.title}</h4>
+                    {selected.completed && <span style={styles.badge('#22c55e')}><Check size={10} /> Erledigt</span>}
+                  </div>
+                  {selected.date && <div style={{ ...styles.cardMeta, marginBottom: '0.2rem' }}><Calendar size={12} /> {selected.date}{selected.timeFrom && ` ${selected.timeFrom}`}{selected.timeTo && ` - ${selected.timeTo}`}</div>}
+                  {selected.address && <div style={{ ...styles.cardMeta, marginBottom: '0.2rem' }}><MapPin size={12} /> {selected.address}</div>}
+                  {totalCost > 0 && <span style={styles.badge('#f59e0b')}><Euro size={10} /> {totalCost.toFixed(2)} EUR</span>}
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn('rgba(59,130,246,0.2)')} onClick={() => { onClose(); onSelect(selected); }}>
+                    <Edit3 size={14} /> Öffnen
+                  </motion.button>
+                  <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={16} /></button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── ICS Calendar Export ─────────────────────────────────
 function generateICS(dest, participants) {
   const formatDate = (date, time) => {
@@ -292,6 +383,8 @@ export default function Destinations() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [searchText, setSearchText] = useState('');
+  const [showOverviewMap, setShowOverviewMap] = useState(false);
 
   const participants = currentVacation?.settings?.participants || [];
 
@@ -393,8 +486,16 @@ export default function Destinations() {
     );
   }
 
-  const active = (destinations || []).filter(d => !d.completed);
-  const archived = (destinations || []).filter(d => d.completed);
+  const filterDest = (d) => {
+    if (!searchText.trim()) return true;
+    const q = searchText.toLowerCase();
+    return (d.title || '').toLowerCase().includes(q)
+      || (d.address || '').toLowerCase().includes(q)
+      || (d.notes || '').toLowerCase().includes(q)
+      || (d.participants || []).some(p => p.toLowerCase().includes(q));
+  };
+  const active = (destinations || []).filter(d => !d.completed && filterDest(d));
+  const archived = (destinations || []).filter(d => d.completed && filterDest(d));
   const totalEstimated = active.reduce((s, d) => s + (d.costs || []).reduce((ss, c) => ss + (parseFloat(c.amount) || 0), 0), 0);
 
   const formatDate = (d) => {
@@ -416,6 +517,26 @@ export default function Destinations() {
               {totalEstimated > 0 && ` \u00b7 ca. ${totalEstimated.toFixed(2)} \u20ac`}
             </p>
           </div>
+        </div>
+
+        {/* Search + Map Button */}
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+            <input
+              style={{ ...styles.input, paddingLeft: '2.2rem' }}
+              placeholder="Ziele durchsuchen..."
+              value={searchText}
+              onChange={e => setSearchText(e.target.value)}
+            />
+          </div>
+          <motion.button
+            whileTap={{ scale: 0.93 }}
+            style={{ ...styles.iconBtn('rgba(59,130,246,0.2)'), padding: '0.65rem 0.85rem', fontSize: '0.8rem' }}
+            onClick={() => setShowOverviewMap(true)}
+          >
+            <Map size={18} /> Karte
+          </motion.button>
         </div>
 
         {/* Add Button */}
@@ -598,6 +719,17 @@ export default function Destinations() {
           </>
         )}
 
+        {/* Overview Map */}
+        <AnimatePresence>
+          {showOverviewMap && (
+            <OverviewMap
+              destinations={destinations || []}
+              onSelect={(dest) => openEdit(dest)}
+              onClose={() => setShowOverviewMap(false)}
+            />
+          )}
+        </AnimatePresence>
+
         {/* Create / Edit Modal */}
         <AnimatePresence>
           {showModal && (
@@ -629,18 +761,20 @@ export default function Destinations() {
                 </div>
 
                 {/* Date + Time */}
-                <div style={styles.row}>
-                  <div style={{ flex: 1 }}>
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <div style={{ marginBottom: '0.5rem' }}>
                     <label style={styles.label}>Datum</label>
                     <input type="date" style={styles.input} value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <label style={styles.label}>Von</label>
-                    <input type="time" style={styles.input} value={form.timeFrom} onChange={e => setForm(f => ({ ...f, timeFrom: e.target.value }))} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <label style={styles.label}>Bis</label>
-                    <input type="time" style={styles.input} value={form.timeTo} onChange={e => setForm(f => ({ ...f, timeTo: e.target.value }))} />
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={styles.label}>Von</label>
+                      <input type="time" style={styles.input} value={form.timeFrom} onChange={e => setForm(f => ({ ...f, timeFrom: e.target.value }))} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={styles.label}>Bis</label>
+                      <input type="time" style={styles.input} value={form.timeTo} onChange={e => setForm(f => ({ ...f, timeTo: e.target.value }))} />
+                    </div>
                   </div>
                 </div>
 
