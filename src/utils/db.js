@@ -182,6 +182,39 @@ export async function joinVacation(code, userId) {
   return { success: true, vacation: vac };
 }
 
+// ============ DESTINATIONS ============
+
+export async function getDestinations(vacationId) {
+  const snap = await getDocs(
+    query(collection(db, 'destinations'), where('vacationId', '==', vacationId))
+  );
+  const dests = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  dests.sort((a, b) => {
+    const dateA = a.date || '';
+    const dateB = b.date || '';
+    if (dateA !== dateB) return dateA.localeCompare(dateB);
+    return (a.timeFrom || '').localeCompare(b.timeFrom || '');
+  });
+  return dests;
+}
+
+export async function createDestination(vacationId, data) {
+  const ref = await addDoc(collection(db, 'destinations'), {
+    vacationId,
+    ...data,
+    createdAt: serverTimestamp()
+  });
+  return ref.id;
+}
+
+export async function updateDestination(destinationId, data) {
+  await updateDoc(doc(db, 'destinations', destinationId), data);
+}
+
+export async function deleteDestination(destinationId) {
+  await deleteDoc(doc(db, 'destinations', destinationId));
+}
+
 // ============ SHARED VACATION CALCULATIONS ============
 
 export function calculateDebts(expenses, participants, payments = []) {

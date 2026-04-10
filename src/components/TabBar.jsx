@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
-import { BarChart3, Receipt, Plane, Settings, Users } from 'lucide-react';
+import { BarChart3, Receipt, Plane, Settings, Users, MapPin } from 'lucide-react';
 
 const tabs = [
   { id: 'overview', label: 'Übersicht', icon: BarChart3 },
   { id: 'expenses', label: 'Ausgaben', icon: Receipt },
+  { id: 'destinations', label: 'Ziele', icon: MapPin },
   { id: 'vacations', label: 'Urlaube', icon: Plane },
   { id: 'shared', label: 'Gemeinsam', icon: Users, sharedOnly: true },
   { id: 'settings', label: 'Einstellungen', icon: Settings },

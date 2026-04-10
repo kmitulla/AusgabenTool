@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getVacations, getVacation, getExpenses } from '../utils/db';
+import { getVacations, getVacation, getExpenses, getDestinations } from '../utils/db';
 import { useAuth } from './AuthContext';
 
 const VacationContext = createContext(null);
@@ -9,6 +9,7 @@ export function VacationProvider({ children }) {
   const [vacations, setVacations] = useState([]);
   const [currentVacation, setCurrentVacation] = useState(null);
   const [expenses, setExpenses] = useState([]);
+  const [destinations, setDestinations] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const loadVacations = useCallback(async () => {
@@ -27,6 +28,10 @@ export function VacationProvider({ children }) {
             const exps = await getExpenses(vac.id);
             setExpenses(exps);
           } catch { setExpenses([]); }
+          try {
+            const dests = await getDestinations(vac.id);
+            setDestinations(dests);
+          } catch { setDestinations([]); }
         } else if (vacs.length > 0) {
           await selectVacation(vacs[0].id);
         }
@@ -51,6 +56,15 @@ export function VacationProvider({ children }) {
       localStorage.setItem('currentVacation', vacationId);
       const exps = await getExpenses(vacationId);
       setExpenses(exps);
+      const dests = await getDestinations(vacationId);
+      setDestinations(dests);
+    }
+  };
+
+  const refreshDestinations = async () => {
+    if (currentVacation) {
+      const dests = await getDestinations(currentVacation.id);
+      setDestinations(dests);
     }
   };
 
@@ -70,8 +84,8 @@ export function VacationProvider({ children }) {
 
   return (
     <VacationContext.Provider value={{
-      vacations, currentVacation, expenses, loading,
-      selectVacation, loadVacations, refreshExpenses, refreshVacation
+      vacations, currentVacation, expenses, destinations, loading,
+      selectVacation, loadVacations, refreshExpenses, refreshDestinations, refreshVacation
     }}>
       {children}
     </VacationContext.Provider>

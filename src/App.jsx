@@ -9,6 +9,7 @@ import Expenses from './pages/Expenses';
 import Vacations from './pages/Vacations';
 import Settings from './pages/Settings';
 import SharedVacation from './pages/SharedVacation';
+import Destinations from './pages/Destinations';
 import TabBar from './components/TabBar';
 import Header from './components/Header';
 
@@ -100,6 +101,8 @@ function MainApp({ activeTab, setActiveTab, onAdminPanel, onLogout }) {
         return <Overview key="overview" />;
       case 'expenses':
         return <Expenses key="expenses" />;
+      case 'destinations':
+        return <Destinations key="destinations" />;
       case 'vacations':
         return <Vacations key="vacations" />;
       case 'shared':
