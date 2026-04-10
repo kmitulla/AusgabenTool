@@ -291,6 +291,7 @@ export default function Destinations() {
   const [showArchive, setShowArchive] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const participants = currentVacation?.settings?.participants || [];
 
@@ -325,11 +326,23 @@ export default function Destinations() {
   const handleSave = async () => {
     if (!currentVacation || !form.title.trim()) return;
     setSaving(true);
-    const data = {
-      ...form,
-      costs: form.costs.filter(c => c.description.trim() || c.amount),
-    };
+    setSaveError('');
     try {
+      const data = {
+        title: form.title,
+        notes: form.notes || '',
+        date: form.date || '',
+        timeFrom: form.timeFrom || '',
+        timeTo: form.timeTo || '',
+        address: form.address || '',
+        participants: form.participants || [],
+        costs: (form.costs || []).filter(c => c.description.trim() || c.amount),
+        completed: form.completed || false,
+      };
+      if (form.lat != null && form.lng != null) {
+        data.lat = form.lat;
+        data.lng = form.lng;
+      }
       if (editDest) {
         await updateDestination(editDest.id, data);
       } else {
@@ -339,8 +352,10 @@ export default function Destinations() {
       setShowModal(false);
     } catch (err) {
       console.error('Save error:', err);
+      setSaveError('Fehler beim Speichern: ' + (err.message || 'Unbekannt'));
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const handleDelete = async (id) => {
@@ -711,6 +726,13 @@ export default function Destinations() {
                     onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                   />
                 </div>
+
+                {/* Error */}
+                {saveError && (
+                  <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '10px', padding: '0.6rem 0.85rem', color: '#fca5a5', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
+                    {saveError}
+                  </div>
+                )}
 
                 {/* Save / Cancel */}
                 <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
