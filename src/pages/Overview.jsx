@@ -5,7 +5,7 @@ import { Pie, Doughnut, Bar } from 'react-chartjs-2';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { updateVacation, calculateDebts } from '../utils/db';
 import { useVacation } from '../contexts/VacationContext';
-import { Plus, Trash2, Edit3, TrendingUp, DollarSign, Calendar, BarChart3, PieChart, X, Eye, EyeOff, Users, AlignLeft, Percent } from 'lucide-react';
+import { Plus, Trash2, Edit3, TrendingUp, DollarSign, Calendar, BarChart3, PieChart, X, Eye, EyeOff, Users, AlignLeft, Percent, Clock } from 'lucide-react';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, Filler);
 
@@ -22,7 +22,7 @@ export default function Overview() {
   const [editKpi, setEditKpi] = useState(null);
   const [editChart, setEditChart] = useState(null);
   const [kpiForm, setKpiForm] = useState({ type: 'total', label: '', categories: [], currency: 'EUR', mergedCategories: [], persons: [] });
-  const [chartForm, setChartForm] = useState({ type: 'pie', label: '', categories: [], currency: 'EUR', showValues: true, showPercent: false, mergedCategories: [], persons: [], stackMode: 'category_person' });
+  const [chartForm, setChartForm] = useState({ type: 'pie', label: '', categories: [], currency: 'EUR', showValues: true, showPercent: false, mergedCategories: [], persons: [], stackMode: 'category_person', timeGranularity: 'day', timeStackBy: 'category', splitBy: 'category' });
   const [mergeInput, setMergeInput] = useState({ name: '', categories: [] });
 
   const rates = currentVacation?.settings?.exchangeRates || { EUR: 1 };
@@ -107,9 +107,12 @@ export default function Overview() {
     const cur = chart.currency || displayCurrency;
     const exps = getExpensesByCategories(chart.categories, chart.mergedCategories, chart.persons || []);
     const grouped = {};
+    const splitBy = chart.splitBy || 'category';
     exps.forEach(e => {
-      const cat = e.displayCategory || e.category || 'Sonstiges';
-      grouped[cat] = (grouped[cat] || 0) + convertAmount(e.amount, e.exchangeRate, cur);
+      const key = splitBy === 'person'
+        ? (e.paidBy || 'Unbekannt')
+        : (e.displayCategory || e.category || 'Sonstiges');
+      grouped[key] = (grouped[key] || 0) + convertAmount(e.amount, e.exchangeRate, cur);
     });
 
     const labels = Object.keys(grouped);
@@ -234,6 +237,83 @@ export default function Overview() {
     };
   };
 
+  const getTimeChartData = (chart) => {
+    const cur = chart.currency || displayCurrency;
+    const sym = currencySymbols[cur] || cur;
+    const granularity = chart.timeGranularity || 'day';
+    const stackBy = chart.timeStackBy || 'category';
+    const exps = getExpensesByCategories(chart.categories, chart.mergedCategories, chart.persons || []);
+
+    const getTimeBucket = (e) => {
+      const date = e.date;
+      if (!date) return null;
+      if (granularity === 'hour') {
+        const hour = (e.time || '00:00').split(':')[0].padStart(2, '0');
+        return `${date} ${hour}`;
+      }
+      if (granularity === 'day') return date;
+      if (granularity === 'week') {
+        const d = new Date(date + 'T00:00:00');
+        const day = d.getDay() || 7;
+        d.setDate(d.getDate() + 4 - day);
+        const yearStart = new Date(d.getFullYear(), 0, 1);
+        const week = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+        return `${d.getFullYear()}-W${String(week).padStart(2, '0')}`;
+      }
+      if (granularity === 'month') return date.slice(0, 7);
+      return date;
+    };
+
+    const formatBucket = (bucket) => {
+      if (!bucket) return '?';
+      if (granularity === 'hour') {
+        const [d, h] = bucket.split(' ');
+        const [y, m, day] = d.split('-');
+        return `${day}.${m} ${h}:00`;
+      }
+      if (granularity === 'day') {
+        const [y, m, d] = bucket.split('-');
+        return `${d}.${m}.${y.slice(2)}`;
+      }
+      if (granularity === 'week') {
+        const [y, w] = bucket.split('-W');
+        return `KW${w} ${y}`;
+      }
+      if (granularity === 'month') {
+        const [y, m] = bucket.split('-');
+        const names = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+        return `${names[parseInt(m) - 1]} ${y}`;
+      }
+      return bucket;
+    };
+
+    const bucketSet = new Set();
+    const groupSet = new Set();
+    const data = {};
+    exps.forEach(e => {
+      const bucket = getTimeBucket(e);
+      if (!bucket) return;
+      const group = stackBy === 'person'
+        ? (e.paidBy || 'Unbekannt')
+        : (e.displayCategory || e.category || 'Sonstiges');
+      bucketSet.add(bucket);
+      groupSet.add(group);
+      if (!data[bucket]) data[bucket] = {};
+      data[bucket][group] = (data[bucket][group] || 0) + convertAmount(e.amount, e.exchangeRate, cur);
+    });
+
+    const sortedBuckets = [...bucketSet].sort();
+    const labels = sortedBuckets.map(formatBucket);
+    const groups = [...groupSet];
+    const datasets = groups.map((group, i) => ({
+      label: group,
+      data: sortedBuckets.map(b => Math.round((data[b]?.[group] || 0) * 100) / 100),
+      backgroundColor: COLORS[i % COLORS.length],
+      borderRadius: 4,
+    }));
+    return { labels, datasets, sym };
+  };
+
   const saveKpis = async (newKpis) => {
     await updateVacation(currentVacation.id, { kpis: newKpis });
     await refreshVacation();
@@ -256,13 +336,13 @@ export default function Overview() {
 
   const handleSaveChart = async () => {
     const item = { ...chartForm, id: editChart?.id || genId() };
-    const typeLabels = { pie: 'Kreisdiagramm', column: 'Säulendiagramm', bar: 'Balkendiagramm', stacked_column: 'Gestapeltes Säulendiagramm', stacked_bar: 'Gestapeltes Balkendiagramm', balance_column: 'Personen-Bilanz (Säulen)', balance_bar: 'Personen-Bilanz (Balken)' };
+    const typeLabels = { pie: 'Kreisdiagramm', column: 'Säulendiagramm', bar: 'Balkendiagramm', stacked_column: 'Gestapeltes Säulendiagramm', stacked_bar: 'Gestapeltes Balkendiagramm', balance_column: 'Personen-Bilanz (Säulen)', balance_bar: 'Personen-Bilanz (Balken)', time_column: 'Zeitverlauf (Säulen)', time_bar: 'Zeitverlauf (Balken)' };
     if (!item.label) item.label = typeLabels[item.type] || 'Diagramm';
     const newCharts = editChart ? charts.map(c => c.id === editChart.id ? item : c) : [...charts, item];
     await saveCharts(newCharts);
     setShowChartModal(false);
     setEditChart(null);
-    setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, mergedCategories: [], persons: [] });
+    setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, showPercent: false, mergedCategories: [], persons: [], stackMode: 'category_person', timeGranularity: 'day', timeStackBy: 'category', splitBy: 'category' });
   };
 
   const deleteKpi = async (id) => {
@@ -401,6 +481,8 @@ export default function Overview() {
                         ['bar', 'Balken', AlignLeft],
                         ['stacked_column', 'Gest. Säulen', BarChart3],
                         ['stacked_bar', 'Gest. Balken', AlignLeft],
+                        ['time_column', 'Zeit Säulen', Clock],
+                        ['time_bar', 'Zeit Balken', Clock],
                         ...(isShared ? [['balance_column', 'Bilanz Säulen', Users], ['balance_bar', 'Bilanz Balken', Users]] : []),
                       ].map(([type, label, Icon]) => (
                         <button key={type} onClick={() => setForm(p => ({ ...p, type }))} style={{
@@ -437,6 +519,34 @@ export default function Overview() {
                           : 'Achse = Personen, Stapel = Kategorien'}
                       </div>
                     </div>
+                  )}
+                  {(form.type === 'time_column' || form.type === 'time_bar') && (
+                    <>
+                      <div style={{ marginBottom: 14 }}>
+                        <label style={s.label}>Zeitauflösung</label>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {[['hour','Stunden'],['day','Tage'],['week','Wochen'],['month','Monate']].map(([g, lbl]) => (
+                            <button key={g} onClick={() => setForm(p => ({ ...p, timeGranularity: g }))} style={{
+                              padding: '8px 12px', borderRadius: 10, border: 'none', fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                              background: (form.timeGranularity || 'day') === g ? '#0ea5e9' : '#f1f5f9',
+                              color: (form.timeGranularity || 'day') === g ? '#fff' : '#64748b',
+                            }}>{lbl}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: 14 }}>
+                        <label style={s.label}>Stapeln nach</label>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          {[['category','Kategorien'], ...(isShared ? [['person','Personen']] : [])].map(([m, lbl]) => (
+                            <button key={m} onClick={() => setForm(p => ({ ...p, timeStackBy: m }))} style={{
+                              ...s.btn, flex: 1, fontSize: 12,
+                              background: (form.timeStackBy || 'category') === m ? '#8b5cf6' : '#f1f5f9',
+                              color: (form.timeStackBy || 'category') === m ? '#fff' : '#64748b',
+                            }}>{lbl}</button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
                   )}
                 </>
               )}
@@ -478,34 +588,50 @@ export default function Overview() {
               )}
 
               {!isKpi && (
-                <div style={{ marginBottom: 14, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-                  <label style={{ ...s.label, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 0 }}>
-                    Werte anzeigen
-                    <button onClick={() => setForm(p => ({ ...p, showValues: !p.showValues }))} style={{
-                      width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.3s',
-                      background: form.showValues ? '#0ea5e9' : '#cbd5e1',
-                    }}>
-                      <div style={{
-                        width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3,
-                        left: form.showValues ? 23 : 3, transition: 'left 0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                      }} />
-                    </button>
-                  </label>
-                  {form.type === 'pie' && (
+                <>
+                  <div style={{ marginBottom: 14, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
                     <label style={{ ...s.label, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 0 }}>
-                      Prozent %
-                      <button onClick={() => setForm(p => ({ ...p, showPercent: !p.showPercent }))} style={{
+                      Werte anzeigen
+                      <button onClick={() => setForm(p => ({ ...p, showValues: !p.showValues }))} style={{
                         width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.3s',
-                        background: form.showPercent ? '#8b5cf6' : '#cbd5e1',
+                        background: form.showValues ? '#0ea5e9' : '#cbd5e1',
                       }}>
                         <div style={{
                           width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3,
-                          left: form.showPercent ? 23 : 3, transition: 'left 0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                          left: form.showValues ? 23 : 3, transition: 'left 0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                         }} />
                       </button>
                     </label>
+                    {form.type === 'pie' && (
+                      <label style={{ ...s.label, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 0 }}>
+                        Prozent %
+                        <button onClick={() => setForm(p => ({ ...p, showPercent: !p.showPercent }))} style={{
+                          width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', position: 'relative', transition: 'background 0.3s',
+                          background: form.showPercent ? '#8b5cf6' : '#cbd5e1',
+                        }}>
+                          <div style={{
+                            width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3,
+                            left: form.showPercent ? 23 : 3, transition: 'left 0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                          }} />
+                        </button>
+                      </label>
+                    )}
+                  </div>
+                  {form.type === 'pie' && isShared && participants.length > 0 && (
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={s.label}>Aufteilen nach</label>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {[['category','Kategorien'],['person','Personen']].map(([m, lbl]) => (
+                          <button key={m} onClick={() => setForm(p => ({ ...p, splitBy: m }))} style={{
+                            ...s.btn, flex: 1, fontSize: 12,
+                            background: (form.splitBy || 'category') === m ? '#0ea5e9' : '#f1f5f9',
+                            color: (form.splitBy || 'category') === m ? '#fff' : '#64748b',
+                          }}>{lbl}</button>
+                        ))}
+                      </div>
+                    </div>
                   )}
-                </div>
+                </>
               )}
 
               {renderCategoryMerger(form, setForm)}
@@ -600,7 +726,7 @@ export default function Overview() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => {
-              setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, mergedCategories: [], persons: [] });
+              setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, showPercent: false, mergedCategories: [], persons: [], stackMode: 'category_person', timeGranularity: 'day', timeStackBy: 'category', splitBy: 'category' });
               setEditChart(null);
               setShowChartModal(true);
             }}
@@ -618,15 +744,15 @@ export default function Overview() {
           </motion.div>
         ) : (
           charts.map((chart, i) => {
-            const isStacked = chart.type === 'stacked_column' || chart.type === 'stacked_bar';
+            const isTime = chart.type === 'time_column' || chart.type === 'time_bar';
+            const isGroupedStacked = chart.type === 'stacked_column' || chart.type === 'stacked_bar';
+            const isStacked = isGroupedStacked || isTime;
             const isBalance = chart.type === 'balance_column' || chart.type === 'balance_bar';
-            const isHorizontal = chart.type === 'bar' || chart.type === 'stacked_bar' || chart.type === 'balance_bar';
+            const isHorizontal = chart.type === 'bar' || chart.type === 'stacked_bar' || chart.type === 'balance_bar' || chart.type === 'time_bar';
             const isPie = chart.type === 'pie';
-            const chartData = isBalance ? getBalanceChartData(chart) : isStacked ? getStackedChartData(chart) : getChartData(chart);
+            const chartData = isBalance ? getBalanceChartData(chart) : isGroupedStacked ? getStackedChartData(chart) : isTime ? getTimeChartData(chart) : getChartData(chart);
             const { labels, datasets, sym } = chartData;
             const hasData = labels.length > 0;
-
-            const totalForPercent = isPie ? datasets[0]?.data?.reduce((a, b) => a + b, 0) || 1 : 1;
 
             const chartOptions = {
               responsive: true,
@@ -659,7 +785,9 @@ export default function Overview() {
                         ? ` ${ctx.dataset.label}: ${sym} ${v}`
                         : ` ${ctx.label}: ${sym} ${v}`;
                       if (isPie && chart.showPercent) {
-                        const pct = ((val / totalForPercent) * 100).toFixed(1);
+                        const meta = ctx.chart.getDatasetMeta(0);
+                        const visibleTotal = ctx.dataset.data.reduce((sum, d, i) => sum + (meta.data[i]?.hidden ? 0 : (parseFloat(d) || 0)), 0) || 1;
+                        const pct = ((val / visibleTotal) * 100).toFixed(1);
                         return `${base} (${pct}%)`;
                       }
                       return base;
@@ -671,10 +799,12 @@ export default function Overview() {
                   font: { weight: 700, size: isPie ? 12 : 11, family: "'Inter', system-ui, sans-serif" },
                   textShadowColor: isPie ? 'rgba(0,0,0,0.3)' : undefined,
                   textShadowBlur: isPie ? 4 : 0,
-                  formatter: (value) => {
+                  formatter: (value, context) => {
                     if (value <= 0) return '';
                     if (isPie && chart.showPercent) {
-                      const pct = ((value / totalForPercent) * 100).toFixed(0);
+                      const meta = context.chart.getDatasetMeta(0);
+                      const visibleTotal = context.dataset.data.reduce((sum, d, i) => sum + (meta.data[i]?.hidden ? 0 : (parseFloat(d) || 0)), 0) || 1;
+                      const pct = ((value / visibleTotal) * 100).toFixed(0);
                       return `${sym}${value.toFixed(0)}\n${pct}%`;
                     }
                     return `${sym}${value.toFixed(0)}`;
@@ -730,7 +860,7 @@ export default function Overview() {
                     }} style={s.btnGhost}>
                       {chart.showValues ? <Eye size={16} /> : <EyeOff size={16} />}
                     </button>
-                    <button onClick={() => { setChartForm({ ...chart, showPercent: chart.showPercent || false, stackMode: chart.stackMode || 'category_person' }); setEditChart(chart); setShowChartModal(true); }} style={s.btnGhost}><Edit3 size={14} /></button>
+                    <button onClick={() => { setChartForm({ ...chart, showPercent: chart.showPercent || false, stackMode: chart.stackMode || 'category_person', timeGranularity: chart.timeGranularity || 'day', timeStackBy: chart.timeStackBy || 'category', splitBy: chart.splitBy || 'category' }); setEditChart(chart); setShowChartModal(true); }} style={s.btnGhost}><Edit3 size={14} /></button>
                     <button onClick={() => deleteChart(chart.id)} style={s.btnGhost}><Trash2 size={14} /></button>
                   </div>
                 </div>
