@@ -10,6 +10,8 @@ const tabs = [
   { id: 'settings', label: 'Einstellungen', icon: Settings },
 ];
 
+const INDICATOR_WIDTH = 40;
+
 export default function TabBar({ activeTab, onTabChange, showShared }) {
   const visibleTabs = tabs.filter(t => !t.sharedOnly || showShared);
 
@@ -19,16 +21,19 @@ export default function TabBar({ activeTab, onTabChange, showShared }) {
       bottom: 0,
       left: 0,
       right: 0,
-      background: 'rgba(255,255,255,0.92)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      borderTop: '1px solid rgba(0,0,0,0.08)',
+      background: 'rgba(255,255,255,0.78)',
+      backdropFilter: 'blur(22px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(22px) saturate(180%)',
+      borderTop: '1px solid rgba(255,255,255,0.7)',
+      boxShadow: '0 -4px 24px -8px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
       display: 'flex',
-      justifyContent: 'space-around',
+      justifyContent: 'space-between',
       alignItems: 'center',
-      padding: '6px 0 max(6px, env(safe-area-inset-bottom))',
+      paddingTop: 6,
+      paddingBottom: 'max(6px, env(safe-area-inset-bottom))',
+      paddingLeft: 'max(6px, env(safe-area-inset-left))',
+      paddingRight: 'max(6px, env(safe-area-inset-right))',
       zIndex: 1000,
-      boxShadow: '0 -2px 20px rgba(0,0,0,0.06)',
     }}>
       {visibleTabs.map(tab => {
         const Icon = tab.icon;
@@ -37,18 +42,19 @@ export default function TabBar({ activeTab, onTabChange, showShared }) {
           <motion.button
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
-            whileTap={{ scale: 0.9 }}
+            whileTap={{ scale: 0.92 }}
             style={{
+              flex: '1 1 0',
+              minWidth: 0,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              gap: '2px',
-              padding: '6px 12px',
+              gap: 3,
+              padding: '6px 2px',
               border: 'none',
               background: 'none',
               cursor: 'pointer',
               position: 'relative',
-              minWidth: '60px',
             }}
           >
             {isActive && (
@@ -56,36 +62,40 @@ export default function TabBar({ activeTab, onTabChange, showShared }) {
                 layoutId="tabIndicator"
                 style={{
                   position: 'absolute',
-                  top: '-6px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: '30px',
-                  height: '3px',
-                  borderRadius: '3px',
+                  top: -6,
+                  left: `calc(50% - ${INDICATOR_WIDTH / 2}px)`,
+                  width: INDICATOR_WIDTH,
+                  height: 4,
+                  borderRadius: 4,
                   background: 'linear-gradient(135deg, #0ea5e9, #06b6d4)',
+                  boxShadow: '0 1px 3px rgba(14,165,233,0.4)',
                 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 38 }}
               />
             )}
             <motion.div
               animate={{
-                scale: isActive ? 1.15 : 1,
-                y: isActive ? -2 : 0,
+                scale: isActive ? 1.12 : 1,
+                y: isActive ? -1 : 0,
               }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             >
               <Icon
-                size={22}
-                strokeWidth={isActive ? 2.5 : 1.8}
+                size={21}
+                strokeWidth={isActive ? 2.5 : 1.9}
                 color={isActive ? '#0ea5e9' : '#94a3b8'}
               />
             </motion.div>
             <span style={{
-              fontSize: '10px',
+              fontSize: 10,
               fontWeight: isActive ? 700 : 500,
               color: isActive ? '#0ea5e9' : '#94a3b8',
-              letterSpacing: '0.02em',
+              letterSpacing: '0.01em',
               transition: 'color 0.2s',
+              maxWidth: '100%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}>
               {tab.label}
             </span>

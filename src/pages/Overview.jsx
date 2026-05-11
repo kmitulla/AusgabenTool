@@ -10,20 +10,20 @@ import { Plus, Trash2, Edit3, TrendingUp, DollarSign, Calendar, BarChart3, PieCh
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, Filler);
 
 const COLORS = ['#3b82f6', '#f97316', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#f59e0b', '#06b6d4', '#f43f5e', '#84cc16', '#a855f7', '#14b8a6'];
-// Vibrant gradient palette for iOS-style KPI tiles
-const KPI_GRADIENTS = [
-  { from: '#667eea', to: '#764ba2', accent: '#a78bfa' }, // violet-blue
-  { from: '#f093fb', to: '#f5576c', accent: '#fda4af' }, // pink-coral
-  { from: '#4facfe', to: '#00f2fe', accent: '#67e8f9' }, // sky-cyan
-  { from: '#43e97b', to: '#38f9d7', accent: '#86efac' }, // green-mint
-  { from: '#fa709a', to: '#fee140', accent: '#fcd34d' }, // rose-amber
-  { from: '#30cfd0', to: '#330867', accent: '#5eead4' }, // teal-indigo
-  { from: '#a8edea', to: '#fed6e3', accent: '#bae6fd' }, // pastel cyan-pink
-  { from: '#ff9a9e', to: '#fad0c4', accent: '#fca5a5' }, // peach
-  { from: '#ffecd2', to: '#fcb69f', accent: '#fdba74' }, // cream-apricot
-  { from: '#84fab0', to: '#8fd3f4', accent: '#7dd3fc' }, // mint-sky
-  { from: '#c471f5', to: '#fa71cd', accent: '#e879f9' }, // magenta
-  { from: '#ff6e7f', to: '#bfe9ff', accent: '#fda4af' }, // sunset
+// Subtle accent palette for iOS-Liquid-Glass KPI tiles (color used only as a soft tint underneath translucent white)
+const KPI_ACCENTS = [
+  { tint: '#6366f1', soft: '#818cf8' }, // indigo
+  { tint: '#ec4899', soft: '#f472b6' }, // pink
+  { tint: '#0ea5e9', soft: '#38bdf8' }, // sky
+  { tint: '#10b981', soft: '#34d399' }, // emerald
+  { tint: '#f59e0b', soft: '#fbbf24' }, // amber
+  { tint: '#8b5cf6', soft: '#a78bfa' }, // violet
+  { tint: '#14b8a6', soft: '#2dd4bf' }, // teal
+  { tint: '#f97316', soft: '#fb923c' }, // orange
+  { tint: '#ef4444', soft: '#f87171' }, // red
+  { tint: '#84cc16', soft: '#a3e635' }, // lime
+  { tint: '#06b6d4', soft: '#22d3ee' }, // cyan
+  { tint: '#a855f7', soft: '#c084fc' }, // purple
 ];
 const currencySymbols = { EUR: '€', USD: '$', GBP: '£', CHF: 'CHF', JPY: '¥', TRY: '₺', THB: '฿' };
 
@@ -273,11 +273,13 @@ export default function Overview() {
       });
       const labels = [...catSet];
       const persons = [...personSet];
-      const datasets = persons.map((p, i) => ({
+      const datasets = persons.map((p, i, arr) => ({
         label: p,
         data: labels.map(cat => Math.round((data[cat]?.[p] || 0) * 100) / 100),
         backgroundColor: COLORS[i % COLORS.length],
-        borderRadius: 4,
+        // round only the outermost edges of each stack
+        borderRadius: arr.length === 1 ? 6 : (i === 0 || i === arr.length - 1) ? 6 : 0,
+        borderSkipped: arr.length === 1 ? false : i === 0 ? 'end' : i === arr.length - 1 ? 'start' : false,
       }));
       return { labels, datasets, sym };
     } else {
@@ -296,11 +298,12 @@ export default function Overview() {
       });
       const labels = [...personSet];
       const cats = [...catSet];
-      const datasets = cats.map((cat, i) => ({
+      const datasets = cats.map((cat, i, arr) => ({
         label: cat,
         data: labels.map(p => Math.round((data[p]?.[cat] || 0) * 100) / 100),
         backgroundColor: COLORS[i % COLORS.length],
-        borderRadius: 4,
+        borderRadius: arr.length === 1 ? 6 : (i === 0 || i === arr.length - 1) ? 6 : 0,
+        borderSkipped: arr.length === 1 ? false : i === 0 ? 'end' : i === arr.length - 1 ? 'start' : false,
       }));
       return { labels, datasets, sym };
     }
@@ -417,11 +420,12 @@ export default function Overview() {
     const sortedBuckets = [...bucketSet].sort();
     const labels = sortedBuckets.map(formatBucket);
     const groups = [...groupSet];
-    const datasets = groups.map((group, i) => ({
+    const datasets = groups.map((group, i, arr) => ({
       label: group,
       data: sortedBuckets.map(b => Math.round((data[b]?.[group] || 0) * 100) / 100),
       backgroundColor: COLORS[i % COLORS.length],
-      borderRadius: 4,
+      borderRadius: arr.length === 1 ? 6 : (i === 0 || i === arr.length - 1) ? 6 : 0,
+      borderSkipped: arr.length === 1 ? false : i === 0 ? 'end' : i === arr.length - 1 ? 'start' : false,
     }));
     return { labels, datasets, sym };
   };
@@ -500,40 +504,53 @@ export default function Overview() {
     sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     sectionTitle: { fontSize: 16, fontWeight: 700, color: '#0c4a6e', display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.01em' },
     grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 14 },
-    // iOS-glass KPI tile — vibrant gradient with frosted highlight, inner ring & soft shadow
-    kpiCard: (g) => ({
+    // Subtle iOS-Liquid-Glass KPI tile — translucent frosted surface with a soft color halo peeking through
+    kpiCard: (a) => ({
       position: 'relative',
-      borderRadius: 22,
-      padding: '18px 16px 16px',
-      background: `linear-gradient(140deg, ${g.from} 0%, ${g.to} 100%)`,
-      boxShadow: `0 10px 24px -8px ${g.from}66, 0 4px 10px -4px ${g.to}44, inset 0 1px 0 rgba(255,255,255,0.45), inset 0 0 0 1px rgba(255,255,255,0.18)`,
+      borderRadius: 20,
+      padding: '16px 16px 14px',
+      background: 'linear-gradient(160deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.62) 100%)',
+      backdropFilter: 'blur(22px) saturate(170%)',
+      WebkitBackdropFilter: 'blur(22px) saturate(170%)',
+      boxShadow: `0 6px 18px -10px ${a.tint}55, 0 1px 3px rgba(15,23,42,0.05), inset 0 1px 0 rgba(255,255,255,0.9), inset 0 0 0 1px rgba(255,255,255,0.55)`,
       overflow: 'hidden',
       isolation: 'isolate',
-      color: '#fff',
-      minHeight: 118,
+      color: '#0f172a',
+      minHeight: 112,
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'space-between',
     }),
-    // Frosted specular highlight overlay (placed inside the card)
+    // Soft white highlight on the top edge so it reads as glass
     kpiHighlight: {
       position: 'absolute',
       inset: 0,
-      background: 'radial-gradient(120% 80% at 10% -10%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.0) 45%), radial-gradient(80% 60% at 110% 110%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 50%)',
+      background: 'radial-gradient(110% 70% at 0% -10%, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 55%)',
       pointerEvents: 'none',
       zIndex: 0,
     },
+    // Colored halo peeks through the frosted surface — provides the personality without saturating the card
     kpiGlow: (color) => ({
       position: 'absolute',
-      width: 140, height: 140, borderRadius: '50%',
+      width: 160, height: 160, borderRadius: '50%',
       background: color,
-      filter: 'blur(40px)',
-      opacity: 0.35,
-      right: -40, top: -40,
+      filter: 'blur(50px)',
+      opacity: 0.22,
+      right: -50, bottom: -60,
       pointerEvents: 'none',
-      zIndex: 0,
+      zIndex: -1,
     }),
-    chartCard: { background: '#ffffff', borderRadius: 22, padding: '22px 18px 18px', boxShadow: '0 12px 30px -12px rgba(15,23,42,0.12), 0 2px 6px -2px rgba(15,23,42,0.06), inset 0 1px 0 rgba(255,255,255,0.9)', border: '1px solid rgba(226,232,240,0.7)', marginBottom: 22 },
+    chartCard: {
+      position: 'relative',
+      background: 'linear-gradient(160deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.78) 100%)',
+      backdropFilter: 'blur(18px) saturate(160%)',
+      WebkitBackdropFilter: 'blur(18px) saturate(160%)',
+      borderRadius: 20,
+      padding: '20px 16px 16px',
+      boxShadow: '0 8px 24px -14px rgba(15,23,42,0.12), 0 1px 3px rgba(15,23,42,0.05), inset 0 1px 0 rgba(255,255,255,0.9)',
+      border: '1px solid rgba(255,255,255,0.6)',
+      marginBottom: 20,
+    },
     btn: { padding: '10px 18px', borderRadius: 12, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s' },
     btnPrimary: { background: 'linear-gradient(135deg, #0ea5e9, #06b6d4)', color: '#fff' },
     btnSmall: { padding: '6px 12px', borderRadius: 8, border: 'none', fontSize: 12, cursor: 'pointer', background: '#f1f5f9', color: '#64748b' },
@@ -815,7 +832,7 @@ export default function Overview() {
           <div style={s.grid}>
             {kpis.map((kpi, i) => {
               const val = calcKpiValue(kpi);
-              const grad = KPI_GRADIENTS[i % KPI_GRADIENTS.length];
+              const accent = KPI_ACCENTS[i % KPI_ACCENTS.length];
               const Icon = kpiTypeIcons[kpi.type] || TrendingUp;
               const sym = currencySymbols[kpi.currency || displayCurrency] || kpi.currency || '€';
               const isCount = kpi.type === 'count' || kpi.type === 'category_count';
@@ -827,34 +844,34 @@ export default function Overview() {
                   : `${sym} ${val.toFixed(2).replace('.', ',')}`;
               // Dynamic font shrink for long values so they never get cut off
               const valLen = valueText.length;
-              const valFontSize = valLen > 14 ? 20 : valLen > 11 ? 23 : valLen > 8 ? 26 : 28;
+              const valFontSize = valLen > 14 ? 19 : valLen > 11 ? 22 : valLen > 8 ? 25 : 27;
+              const valueColor = isBalance
+                ? (val > 0.01 ? '#16a34a' : val < -0.01 ? '#dc2626' : '#0f172a')
+                : '#0f172a';
 
               return (
                 <motion.div
                   key={kpi.id}
-                  initial={{ opacity: 0, y: 12, scale: 0.96 }}
+                  initial={{ opacity: 0, y: 10, scale: 0.97 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ delay: i * 0.04, type: 'spring', stiffness: 240, damping: 22 }}
                   whileHover={{ y: -2 }}
-                  style={s.kpiCard(grad)}
+                  style={s.kpiCard(accent)}
                 >
-                  <div style={s.kpiGlow(grad.accent)} />
+                  <div style={s.kpiGlow(accent.soft)} />
                   <div style={s.kpiHighlight} />
                   <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{
-                      width: 36, height: 36, borderRadius: 12,
-                      background: 'rgba(255,255,255,0.22)',
-                      backdropFilter: 'blur(8px)',
-                      WebkitBackdropFilter: 'blur(8px)',
-                      border: '1px solid rgba(255,255,255,0.35)',
+                      width: 34, height: 34, borderRadius: 11,
+                      background: `linear-gradient(135deg, ${accent.tint}, ${accent.soft})`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)',
+                      boxShadow: `0 4px 10px -3px ${accent.tint}55, inset 0 1px 0 rgba(255,255,255,0.4)`,
                     }}>
-                      <Icon size={18} color="#fff" strokeWidth={2.4} />
+                      <Icon size={17} color="#fff" strokeWidth={2.4} />
                     </div>
                     <div style={{ display: 'flex', gap: 2 }}>
-                      <button onClick={() => { setKpiForm({ ...kpi }); setEditKpi(kpi); setShowKpiModal(true); }} style={{ ...s.btnGhost, color: 'rgba(255,255,255,0.85)' }}><Edit3 size={14} /></button>
-                      <button onClick={() => deleteKpi(kpi.id)} style={{ ...s.btnGhost, color: 'rgba(255,255,255,0.85)' }}><Trash2 size={14} /></button>
+                      <button onClick={() => { setKpiForm({ ...kpi }); setEditKpi(kpi); setShowKpiModal(true); }} style={s.btnGhost}><Edit3 size={14} /></button>
+                      <button onClick={() => deleteKpi(kpi.id)} style={s.btnGhost}><Trash2 size={14} /></button>
                     </div>
                   </div>
                   <div style={{ position: 'relative', zIndex: 1 }}>
@@ -866,8 +883,7 @@ export default function Overview() {
                         fontWeight: 800,
                         marginBottom: 2,
                         letterSpacing: '-0.02em',
-                        color: '#ffffff',
-                        textShadow: '0 1px 2px rgba(0,0,0,0.12)',
+                        color: valueColor,
                         lineHeight: 1.1,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
@@ -876,7 +892,7 @@ export default function Overview() {
                     >
                       {valueText}
                     </motion.div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.92)', fontWeight: 600, letterSpacing: '0.01em' }}>
+                    <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, letterSpacing: '0.01em' }}>
                       {kpi.label || kpiTypeLabels[kpi.type]}
                       {kpi.persons?.length > 0 && <span style={{ display: 'block', fontSize: 11, marginTop: 2, opacity: 0.8, fontWeight: 500 }}>{kpi.persons.join(', ')}</span>}
                     </div>
@@ -1079,7 +1095,8 @@ export default function Overview() {
             };
 
             const barData = (isStacked || isBalance)
-              ? { labels, datasets: datasets.map(d => ({ ...d, borderRadius: 6, borderSkipped: false, maxBarThickness: 56 })) }
+              // for true stacks the dataset generator already provides per-segment borderRadius / borderSkipped
+              ? { labels, datasets: datasets.map(d => ({ ...d, maxBarThickness: 56 })) }
               : { labels, datasets: [{ ...datasets[0], label: chart.label, borderRadius: 8, borderSkipped: false, maxBarThickness: 56 }] };
 
             const activePlugins = [];
