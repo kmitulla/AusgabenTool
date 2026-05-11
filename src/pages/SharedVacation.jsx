@@ -339,7 +339,7 @@ function getAvatarColor(name, index) {
 
 function formatCurrency(amount, currency = 'EUR') {
   const sym = currency === 'EUR' ? '\u20AC' : currency === 'USD' ? '$' : currency === 'GBP' ? '\u00A3' : currency;
-  return `${sym}${Math.abs(amount).toFixed(2)}`;
+  return `${sym}${Math.abs(amount).toFixed(2).replace('.', ',')}`;
 }
 
 export default function SharedVacation() {
@@ -827,9 +827,9 @@ export default function SharedVacation() {
                     <option value="">An</option>
                     {participants.filter(p => p !== paymentForm.from).map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
-                  <input type="number" inputMode="decimal" step="0.01" min="0"
-                    placeholder={`Betrag (${displayCurrency})`} value={paymentForm.amount}
-                    onChange={e => setPaymentForm(f => ({ ...f, amount: e.target.value }))}
+                  <input type="text" inputMode="decimal" pattern="[0-9]*[,.]?[0-9]*" min="0"
+                    placeholder={`Betrag (${displayCurrency})`} value={(paymentForm.amount || '').replace('.', ',')}
+                    onChange={e => setPaymentForm(f => ({ ...f, amount: e.target.value.replace(',', '.') }))}
                     style={{ width: '110px', padding: '0.5rem 0.6rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.875rem', fontFamily: 'inherit' }} />
                   <input type="date" value={paymentForm.date}
                     onChange={e => setPaymentForm(f => ({ ...f, date: e.target.value }))}
@@ -869,8 +869,8 @@ export default function SharedVacation() {
                                 style={{ flex: 1, minWidth: '80px', padding: '0.4rem', borderRadius: '7px', border: '1px solid #86efac', fontSize: '0.8rem', fontFamily: 'inherit' }}>
                                 {participants.filter(p => p !== editPayment.from).map(p => <option key={p} value={p}>{p}</option>)}
                               </select>
-                              <input type="number" inputMode="decimal" step="0.01" value={editPayment.amount}
-                                onChange={e => setEditPayment(p => ({ ...p, amount: e.target.value }))}
+                              <input type="text" inputMode="decimal" pattern="[0-9]*[,.]?[0-9]*" value={((editPayment.amount || '').toString()).replace('.', ',')}
+                                onChange={e => setEditPayment(p => ({ ...p, amount: e.target.value.replace(',', '.') }))}
                                 style={{ width: '90px', padding: '0.4rem', borderRadius: '7px', border: '1px solid #86efac', fontSize: '0.8rem', fontFamily: 'inherit' }} />
                               <input type="date" value={editPayment.date || ''}
                                 onChange={e => setEditPayment(p => ({ ...p, date: e.target.value }))}

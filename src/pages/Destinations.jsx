@@ -303,7 +303,7 @@ function OverviewMap({ destinations, onSelect, onClose }) {
                   </div>
                   {selected.date && <div style={{ ...styles.cardMeta, marginBottom: '0.2rem' }}><Calendar size={12} /> {selected.date}{selected.timeFrom && ` ${selected.timeFrom}`}{selected.timeTo && ` - ${selected.timeTo}`}</div>}
                   {selected.address && <div style={{ ...styles.cardMeta, marginBottom: '0.2rem' }}><MapPin size={12} /> {selected.address}</div>}
-                  {totalCost > 0 && <span style={styles.badge('#f59e0b')}><Euro size={10} /> {totalCost.toFixed(2)} EUR</span>}
+                  {totalCost > 0 && <span style={styles.badge('#f59e0b')}><Euro size={10} /> {totalCost.toFixed(2).replace('.', ',')} EUR</span>}
                 </div>
                 <div style={{ display: 'flex', gap: '0.4rem' }}>
                   <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn('rgba(59,130,246,0.2)')} onClick={() => { onClose(); onSelect(selected); }}>
@@ -514,7 +514,7 @@ export default function Destinations() {
             <h1 style={styles.title}>Urlaubsziele</h1>
             <p style={styles.subtitle}>
               {active.length} Ziel{active.length !== 1 ? 'e' : ''} geplant
-              {totalEstimated > 0 && ` \u00b7 ca. ${totalEstimated.toFixed(2)} \u20ac`}
+              {totalEstimated > 0 && ` \u00b7 ca. ${totalEstimated.toFixed(2).replace('.', ',')} \u20ac`}
             </p>
           </div>
         </div>
@@ -595,7 +595,7 @@ export default function Destinations() {
                   {totalCost > 0 && (
                     <div style={{ marginTop: '0.4rem' }}>
                       <span style={styles.badge('#f59e0b')}>
-                        <Euro size={11} /> ca. {totalCost.toFixed(2)} EUR
+                        <Euro size={11} /> ca. {totalCost.toFixed(2).replace('.', ',')} EUR
                       </span>
                     </div>
                   )}
@@ -683,7 +683,7 @@ export default function Destinations() {
                             </div>
                           )}
                           {dest.address && <div style={styles.cardMeta}><MapPin size={13} /> {dest.address}</div>}
-                          {totalCost > 0 && <span style={styles.badge('#f59e0b')}><Euro size={11} /> {totalCost.toFixed(2)} EUR</span>}
+                          {totalCost > 0 && <span style={styles.badge('#f59e0b')}><Euro size={11} /> {totalCost.toFixed(2).replace('.', ',')} EUR</span>}
                           <div style={styles.cardActions}>
                             <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn('rgba(59,130,246,0.2)')} onClick={() => handleToggleComplete(dest)}>
                               <RotateCcw size={14} /> Reaktivieren
@@ -833,10 +833,11 @@ export default function Destinations() {
                       <input
                         style={{ ...styles.input, flex: 1 }}
                         placeholder="Betrag"
-                        type="number"
-                        step="0.01"
-                        value={cost.amount}
-                        onChange={e => updateCost(i, 'amount', e.target.value)}
+                        type="text"
+                        inputMode="decimal"
+                        pattern="[0-9]*[,.]?[0-9]*"
+                        value={(cost.amount || '').toString().replace('.', ',')}
+                        onChange={e => updateCost(i, 'amount', e.target.value.replace(',', '.'))}
                       />
                       {form.costs.length > 1 && (
                         <button style={{ ...styles.iconBtn('rgba(239,68,68,0.2)'), padding: '0.5rem' }} onClick={() => removeCost(i)}>
