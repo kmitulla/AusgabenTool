@@ -10,10 +10,121 @@ import { Plus, Trash2, Edit3, TrendingUp, DollarSign, Calendar, BarChart3, PieCh
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, Filler);
 
 const COLORS = ['#3b82f6', '#f97316', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#f59e0b', '#06b6d4', '#f43f5e', '#84cc16', '#a855f7', '#14b8a6'];
-const COLORS_SOFT = COLORS.map(c => c + 'cc');
+// Vibrant gradient palette for iOS-style KPI tiles
+const KPI_GRADIENTS = [
+  { from: '#667eea', to: '#764ba2', accent: '#a78bfa' }, // violet-blue
+  { from: '#f093fb', to: '#f5576c', accent: '#fda4af' }, // pink-coral
+  { from: '#4facfe', to: '#00f2fe', accent: '#67e8f9' }, // sky-cyan
+  { from: '#43e97b', to: '#38f9d7', accent: '#86efac' }, // green-mint
+  { from: '#fa709a', to: '#fee140', accent: '#fcd34d' }, // rose-amber
+  { from: '#30cfd0', to: '#330867', accent: '#5eead4' }, // teal-indigo
+  { from: '#a8edea', to: '#fed6e3', accent: '#bae6fd' }, // pastel cyan-pink
+  { from: '#ff9a9e', to: '#fad0c4', accent: '#fca5a5' }, // peach
+  { from: '#ffecd2', to: '#fcb69f', accent: '#fdba74' }, // cream-apricot
+  { from: '#84fab0', to: '#8fd3f4', accent: '#7dd3fc' }, // mint-sky
+  { from: '#c471f5', to: '#fa71cd', accent: '#e879f9' }, // magenta
+  { from: '#ff6e7f', to: '#bfe9ff', accent: '#fda4af' }, // sunset
+];
 const currencySymbols = { EUR: '€', USD: '$', GBP: '£', CHF: 'CHF', JPY: '¥', TRY: '₺', THB: '฿' };
 
 function genId() { return Math.random().toString(36).substring(2, 9); }
+
+// Compact number formatter for axis ticks (e.g. 12500 -> 12,5K)
+function compactNumber(value) {
+  const v = Math.abs(value);
+  if (v >= 1_000_000) return (value / 1_000_000).toFixed(v >= 10_000_000 ? 0 : 1).replace('.', ',') + 'M';
+  if (v >= 10_000) return (value / 1_000).toFixed(0) + 'K';
+  if (v >= 1_000) return (value / 1_000).toFixed(1).replace('.', ',') + 'K';
+  return value.toFixed(0);
+}
+
+// Custom plugin: draw stacked total on top of each stack (column or bar orientation)
+const stackedTotalPlugin = {
+  id: 'stackedTotal',
+  afterDatasetsDraw(chart, _args, opts) {
+    if (!opts || !opts.enabled) return;
+    const { ctx } = chart;
+    const isHorizontal = chart.options.indexAxis === 'y';
+    const meta0 = chart.getDatasetMeta(0);
+    if (!meta0 || !meta0.data) return;
+    const sym = opts.symbol || '';
+    const negColor = opts.negativeColor || '#dc2626';
+    const posColor = opts.color || '#0f172a';
+
+    meta0.data.forEach((_bar, index) => {
+      let total = 0;
+      let topPositive = null;
+      let bottomNegative = null;
+      chart.data.datasets.forEach((ds, i) => {
+        const meta = chart.getDatasetMeta(i);
+        if (meta.hidden) return;
+        const v = ds.data[index];
+        if (typeof v !== 'number') return;
+        total += v;
+        const el = meta.data[index];
+        if (!el) return;
+        if (isHorizontal) {
+          if (v >= 0 && (topPositive === null || el.x > topPositive.x)) topPositive = { x: el.x, y: el.y };
+          if (v < 0 && (bottomNegative === null || el.x < bottomNegative.x)) bottomNegative = { x: el.x, y: el.y };
+        } else {
+          if (v >= 0 && (topPositive === null || el.y < topPositive.y)) topPositive = { x: el.x, y: el.y };
+          if (v < 0 && (bottomNegative === null || el.y > bottomNegative.y)) bottomNegative = { x: el.x, y: el.y };
+        }
+      });
+      if (Math.abs(total) < 0.005) return;
+      const anchor = total >= 0 ? topPositive : bottomNegative;
+      if (!anchor) return;
+
+      const label = `${sym}${compactNumber(total)}`;
+      ctx.save();
+      ctx.font = "700 11px 'Inter', system-ui, sans-serif";
+      const padX = 6;
+      const textW = ctx.measureText(label).width;
+      let x, y, alignX = 'center', baseline = 'middle';
+
+      if (isHorizontal) {
+        x = anchor.x + (total >= 0 ? 8 : -8);
+        y = anchor.y;
+        alignX = total >= 0 ? 'left' : 'right';
+        baseline = 'middle';
+      } else {
+        x = anchor.x;
+        y = anchor.y + (total >= 0 ? -8 : 14);
+        alignX = 'center';
+        baseline = total >= 0 ? 'bottom' : 'top';
+      }
+
+      // Pill background for readability
+      ctx.textAlign = alignX;
+      ctx.textBaseline = baseline;
+      const bgX = alignX === 'left' ? x - padX : alignX === 'right' ? x - textW - padX : x - textW / 2 - padX;
+      const bgY = baseline === 'middle' ? y - 9 : baseline === 'bottom' ? y - 16 : y - 1;
+      const bgW = textW + padX * 2;
+      const bgH = 18;
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.strokeStyle = 'rgba(15,23,42,0.08)';
+      ctx.lineWidth = 1;
+      const r = 9;
+      ctx.beginPath();
+      ctx.moveTo(bgX + r, bgY);
+      ctx.lineTo(bgX + bgW - r, bgY);
+      ctx.quadraticCurveTo(bgX + bgW, bgY, bgX + bgW, bgY + r);
+      ctx.lineTo(bgX + bgW, bgY + bgH - r);
+      ctx.quadraticCurveTo(bgX + bgW, bgY + bgH, bgX + bgW - r, bgY + bgH);
+      ctx.lineTo(bgX + r, bgY + bgH);
+      ctx.quadraticCurveTo(bgX, bgY + bgH, bgX, bgY + bgH - r);
+      ctx.lineTo(bgX, bgY + r);
+      ctx.quadraticCurveTo(bgX, bgY, bgX + r, bgY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = total >= 0 ? posColor : negColor;
+      ctx.fillText(label, x, y);
+      ctx.restore();
+    });
+  },
+};
 
 export default function Overview() {
   const { currentVacation, expenses, refreshVacation } = useVacation();
@@ -127,12 +238,13 @@ export default function Overview() {
       labels,
       datasets: [{
         data: values,
-        backgroundColor: isPie ? COLORS_SOFT : labels.map((_, i) => COLORS[i % COLORS.length] + 'dd'),
+        backgroundColor: labels.map((_, i) => COLORS[i % COLORS.length]),
         borderColor: isPie ? '#ffffff' : labels.map((_, i) => COLORS[i % COLORS.length]),
-        borderWidth: isPie ? 3 : 0,
+        borderWidth: isPie ? 2 : 0,
         borderRadius: isPie ? 0 : 10,
         hoverBackgroundColor: labels.map((_, i) => COLORS[i % COLORS.length]),
-        hoverOffset: isPie ? 8 : 0,
+        hoverOffset: isPie ? 10 : 0,
+        spacing: isPie ? 1 : 0,
       }],
       sym,
     };
@@ -384,17 +496,44 @@ export default function Overview() {
 
   const s = {
     page: { padding: 16 },
-    section: { marginBottom: 24 },
-    sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-    sectionTitle: { fontSize: 16, fontWeight: 700, color: '#0c4a6e', display: 'flex', alignItems: 'center', gap: 8 },
-    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 },
-    kpiCard: (color) => ({
-      background: `linear-gradient(135deg, ${color}15, ${color}08)`,
-      borderRadius: 16, padding: '18px 16px',
-      border: `1px solid ${color}30`,
-      position: 'relative', overflow: 'hidden',
+    section: { marginBottom: 28 },
+    sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+    sectionTitle: { fontSize: 16, fontWeight: 700, color: '#0c4a6e', display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.01em' },
+    grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 14 },
+    // iOS-glass KPI tile — vibrant gradient with frosted highlight, inner ring & soft shadow
+    kpiCard: (g) => ({
+      position: 'relative',
+      borderRadius: 22,
+      padding: '18px 16px 16px',
+      background: `linear-gradient(140deg, ${g.from} 0%, ${g.to} 100%)`,
+      boxShadow: `0 10px 24px -8px ${g.from}66, 0 4px 10px -4px ${g.to}44, inset 0 1px 0 rgba(255,255,255,0.45), inset 0 0 0 1px rgba(255,255,255,0.18)`,
+      overflow: 'hidden',
+      isolation: 'isolate',
+      color: '#fff',
+      minHeight: 118,
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'space-between',
     }),
-    chartCard: { background: '#fff', borderRadius: 20, padding: '24px 20px', boxShadow: '0 4px 24px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', marginBottom: 20 },
+    // Frosted specular highlight overlay (placed inside the card)
+    kpiHighlight: {
+      position: 'absolute',
+      inset: 0,
+      background: 'radial-gradient(120% 80% at 10% -10%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.0) 45%), radial-gradient(80% 60% at 110% 110%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 50%)',
+      pointerEvents: 'none',
+      zIndex: 0,
+    },
+    kpiGlow: (color) => ({
+      position: 'absolute',
+      width: 140, height: 140, borderRadius: '50%',
+      background: color,
+      filter: 'blur(40px)',
+      opacity: 0.35,
+      right: -40, top: -40,
+      pointerEvents: 'none',
+      zIndex: 0,
+    }),
+    chartCard: { background: '#ffffff', borderRadius: 22, padding: '22px 18px 18px', boxShadow: '0 12px 30px -12px rgba(15,23,42,0.12), 0 2px 6px -2px rgba(15,23,42,0.06), inset 0 1px 0 rgba(255,255,255,0.9)', border: '1px solid rgba(226,232,240,0.7)', marginBottom: 22 },
     btn: { padding: '10px 18px', borderRadius: 12, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s' },
     btnPrimary: { background: 'linear-gradient(135deg, #0ea5e9, #06b6d4)', color: '#fff' },
     btnSmall: { padding: '6px 12px', borderRadius: 8, border: 'none', fontSize: 12, cursor: 'pointer', background: '#f1f5f9', color: '#64748b' },
@@ -676,40 +815,71 @@ export default function Overview() {
           <div style={s.grid}>
             {kpis.map((kpi, i) => {
               const val = calcKpiValue(kpi);
-              const color = COLORS[i % COLORS.length];
+              const grad = KPI_GRADIENTS[i % KPI_GRADIENTS.length];
               const Icon = kpiTypeIcons[kpi.type] || TrendingUp;
               const sym = currencySymbols[kpi.currency || displayCurrency] || kpi.currency || '€';
               const isCount = kpi.type === 'count' || kpi.type === 'category_count';
+              const isBalance = kpi.type === 'person_balance';
+              const valueText = isCount
+                ? String(Math.round(val))
+                : isBalance
+                  ? `${val > 0 ? '+' : ''}${sym} ${val.toFixed(2).replace('.', ',')}`
+                  : `${sym} ${val.toFixed(2).replace('.', ',')}`;
+              // Dynamic font shrink for long values so they never get cut off
+              const valLen = valueText.length;
+              const valFontSize = valLen > 14 ? 20 : valLen > 11 ? 23 : valLen > 8 ? 26 : 28;
 
               return (
                 <motion.div
                   key={kpi.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.05 }}
-                  style={s.kpiCard(color)}
+                  initial={{ opacity: 0, y: 12, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ delay: i * 0.04, type: 'spring', stiffness: 240, damping: 22 }}
+                  whileHover={{ y: -2 }}
+                  style={s.kpiCard(grad)}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 10, background: `${color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Icon size={16} color={color} />
+                  <div style={s.kpiGlow(grad.accent)} />
+                  <div style={s.kpiHighlight} />
+                  <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 12,
+                      background: 'rgba(255,255,255,0.22)',
+                      backdropFilter: 'blur(8px)',
+                      WebkitBackdropFilter: 'blur(8px)',
+                      border: '1px solid rgba(255,255,255,0.35)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)',
+                    }}>
+                      <Icon size={18} color="#fff" strokeWidth={2.4} />
                     </div>
                     <div style={{ display: 'flex', gap: 2 }}>
-                      <button onClick={() => { setKpiForm({ ...kpi }); setEditKpi(kpi); setShowKpiModal(true); }} style={s.btnGhost}><Edit3 size={14} /></button>
-                      <button onClick={() => deleteKpi(kpi.id)} style={s.btnGhost}><Trash2 size={14} /></button>
+                      <button onClick={() => { setKpiForm({ ...kpi }); setEditKpi(kpi); setShowKpiModal(true); }} style={{ ...s.btnGhost, color: 'rgba(255,255,255,0.85)' }}><Edit3 size={14} /></button>
+                      <button onClick={() => deleteKpi(kpi.id)} style={{ ...s.btnGhost, color: 'rgba(255,255,255,0.85)' }}><Trash2 size={14} /></button>
                     </div>
                   </div>
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    style={{ fontSize: 22, fontWeight: 800, marginBottom: 4,
-                      color: kpi.type === 'person_balance' ? (val > 0.01 ? '#16a34a' : val < -0.01 ? '#dc2626' : '#64748b') : '#1e293b',
-                    }}
-                  >
-                    {isCount ? Math.round(val) : kpi.type === 'person_balance' ? `${val > 0 ? '+' : ''}${sym} ${val.toFixed(2).replace('.', ',')}` : `${sym} ${val.toFixed(2).replace('.', ',')}`}
-                  </motion.div>
-                  <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>
-                    {kpi.label || kpiTypeLabels[kpi.type]}
-                    {kpi.persons?.length > 0 && <span style={{ display: 'block', fontSize: 11, marginTop: 2, opacity: 0.8 }}>{kpi.persons.join(', ')}</span>}
+                  <div style={{ position: 'relative', zIndex: 1 }}>
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      style={{
+                        fontSize: valFontSize,
+                        fontWeight: 800,
+                        marginBottom: 2,
+                        letterSpacing: '-0.02em',
+                        color: '#ffffff',
+                        textShadow: '0 1px 2px rgba(0,0,0,0.12)',
+                        lineHeight: 1.1,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {valueText}
+                    </motion.div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.92)', fontWeight: 600, letterSpacing: '0.01em' }}>
+                      {kpi.label || kpiTypeLabels[kpi.type]}
+                      {kpi.persons?.length > 0 && <span style={{ display: 'block', fontSize: 11, marginTop: 2, opacity: 0.8, fontWeight: 500 }}>{kpi.persons.join(', ')}</span>}
+                    </div>
                   </div>
                 </motion.div>
               );
@@ -754,29 +924,69 @@ export default function Overview() {
             const { labels, datasets, sym } = chartData;
             const hasData = labels.length > 0;
 
+            // Compute total of pie for percentage / overlap logic
+            const pieTotal = isPie && datasets[0] ? datasets[0].data.reduce((a, b) => a + (parseFloat(b) || 0), 0) : 0;
+
+            // Dynamic chart container height — gives bars room to breathe and reserves space for the total pill on stacked charts
+            const containerHeight = isPie
+              ? (labels.length > 8 ? 360 : 300)
+              : isHorizontal
+                ? Math.max(240, labels.length * 38 + 80)
+                : Math.max(280, Math.min(420, labels.length * 36 + 120));
+
             const chartOptions = {
               responsive: true,
-              maintainAspectRatio: true,
+              maintainAspectRatio: false,
               indexAxis: isHorizontal ? 'y' : 'x',
-              animation: { duration: 600, easing: 'easeOutQuart' },
+              animation: { duration: 650, easing: 'easeOutQuart' },
+              layout: { padding: { top: isStacked && !isHorizontal ? 24 : 8, right: isStacked && isHorizontal ? 56 : 12, bottom: 4, left: 4 } },
               plugins: {
                 legend: {
                   display: isPie || isStacked || isBalance,
                   position: isPie ? 'bottom' : 'top',
+                  align: 'center',
                   labels: {
-                    padding: 16, usePointStyle: true, pointStyleWidth: 10,
+                    padding: 14, usePointStyle: true, pointStyleWidth: 10,
+                    boxHeight: 8,
                     font: { size: 12, weight: 500, family: "'Inter', system-ui, sans-serif" },
                     color: '#475569',
+                    // For pies, embed percentage + value in legend so tiny slices stay readable even when label is hidden
+                    generateLabels: isPie ? (c) => {
+                      const data = c.data;
+                      if (!data.labels.length || !data.datasets.length) return [];
+                      const ds = data.datasets[0];
+                      const meta = c.getDatasetMeta(0);
+                      const visible = ds.data.reduce((acc, v, idx) => acc + (meta.data[idx]?.hidden ? 0 : (parseFloat(v) || 0)), 0) || 1;
+                      return data.labels.map((label, idx) => {
+                        const val = parseFloat(ds.data[idx]) || 0;
+                        const pct = ((val / visible) * 100).toFixed(val / visible < 0.1 ? 1 : 0);
+                        const txt = chart.showPercent
+                          ? `${label} — ${pct}%`
+                          : `${label} — ${sym}${compactNumber(val)} (${pct}%)`;
+                        const hidden = !!meta.data[idx]?.hidden;
+                        return {
+                          text: txt,
+                          fillStyle: Array.isArray(ds.backgroundColor) ? ds.backgroundColor[idx] : ds.backgroundColor,
+                          strokeStyle: Array.isArray(ds.borderColor) ? ds.borderColor[idx] : ds.borderColor,
+                          lineWidth: 1,
+                          hidden,
+                          index: idx,
+                          fontColor: hidden ? '#cbd5e1' : '#475569',
+                        };
+                      });
+                    } : undefined,
                   },
                 },
                 tooltip: {
-                  backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                  titleFont: { size: 13, weight: 600 },
-                  bodyFont: { size: 12 },
+                  backgroundColor: 'rgba(15, 23, 42, 0.96)',
+                  titleFont: { size: 13, weight: 600, family: "'Inter', system-ui, sans-serif" },
+                  bodyFont: { size: 12, family: "'Inter', system-ui, sans-serif" },
                   padding: 12,
-                  cornerRadius: 10,
+                  cornerRadius: 12,
                   displayColors: true,
-                  boxPadding: 4,
+                  boxPadding: 6,
+                  borderColor: 'rgba(255,255,255,0.08)',
+                  borderWidth: 1,
                   callbacks: {
                     label: (ctx) => {
                       const val = ctx.parsed?.x ?? ctx.parsed?.y ?? ctx.parsed ?? ctx.raw ?? 0;
@@ -784,9 +994,9 @@ export default function Overview() {
                       const base = (isStacked || isBalance)
                         ? ` ${ctx.dataset.label}: ${sym} ${v}`
                         : ` ${ctx.label}: ${sym} ${v}`;
-                      if (isPie && chart.showPercent) {
+                      if (isPie) {
                         const meta = ctx.chart.getDatasetMeta(0);
-                        const visibleTotal = ctx.dataset.data.reduce((sum, d, i) => sum + (meta.data[i]?.hidden ? 0 : (parseFloat(d) || 0)), 0) || 1;
+                        const visibleTotal = ctx.dataset.data.reduce((sum, d, j) => sum + (meta.data[j]?.hidden ? 0 : (parseFloat(d) || 0)), 0) || 1;
                         const pct = ((val / visibleTotal) * 100).toFixed(1);
                         return `${base} (${pct}%)`;
                       }
@@ -795,57 +1005,105 @@ export default function Overview() {
                   },
                 },
                 datalabels: chart.showValues ? {
-                  color: isPie ? '#fff' : '#334155',
+                  color: isPie ? '#fff' : '#1e293b',
                   font: { weight: 700, size: isPie ? 12 : 11, family: "'Inter', system-ui, sans-serif" },
-                  textShadowColor: isPie ? 'rgba(0,0,0,0.3)' : undefined,
-                  textShadowBlur: isPie ? 4 : 0,
-                  formatter: (value, context) => {
-                    if (value <= 0) return '';
-                    if (isPie && chart.showPercent) {
+                  textShadowColor: isPie ? 'rgba(0,0,0,0.45)' : undefined,
+                  textShadowBlur: isPie ? 6 : 0,
+                  // For stacked charts, hide per-segment labels — totals are drawn by stackedTotalPlugin instead
+                  display: (context) => {
+                    if (isStacked) return false;
+                    if (isPie) {
+                      // Hide labels on slices smaller than 6% of total to prevent overlap
+                      const v = parseFloat(context.dataset.data[context.dataIndex]) || 0;
                       const meta = context.chart.getDatasetMeta(0);
-                      const visibleTotal = context.dataset.data.reduce((sum, d, i) => sum + (meta.data[i]?.hidden ? 0 : (parseFloat(d) || 0)), 0) || 1;
-                      const pct = ((value / visibleTotal) * 100).toFixed(0);
-                      return `${sym}${value.toFixed(0)}\n${pct}%`;
+                      const visible = context.dataset.data.reduce((sum, d, j) => sum + (meta.data[j]?.hidden ? 0 : (parseFloat(d) || 0)), 0) || 1;
+                      return (v / visible) >= 0.06;
                     }
-                    return `${sym}${value.toFixed(0)}`;
+                    return true;
+                  },
+                  formatter: (value, context) => {
+                    if (value === 0 || value === null || value === undefined) return '';
+                    if (isPie) {
+                      const meta = context.chart.getDatasetMeta(0);
+                      const visibleTotal = context.dataset.data.reduce((sum, d, j) => sum + (meta.data[j]?.hidden ? 0 : (parseFloat(d) || 0)), 0) || 1;
+                      const pct = ((value / visibleTotal) * 100).toFixed(0);
+                      if (chart.showPercent) return `${pct}%`;
+                      return `${sym}${compactNumber(value)}\n${pct}%`;
+                    }
+                    return `${sym}${compactNumber(value)}`;
                   },
                   anchor: isPie ? 'center' : 'end',
-                  align: isPie ? 'center' : isHorizontal ? 'right' : 'top',
+                  align: isPie ? 'center' : isHorizontal ? 'end' : 'end',
+                  offset: isPie ? 0 : 4,
+                  clamp: true,
+                  clip: false,
                 } : { display: false },
+                // Draw total pill on top of each stack (only true stacked charts, not grouped balance bars)
+                stackedTotal: {
+                  enabled: isStacked,
+                  symbol: sym,
+                  color: '#0f172a',
+                  negativeColor: '#dc2626',
+                },
               },
               scales: !isPie ? {
                 x: {
                   stacked: isStacked,
                   beginAtZero: isHorizontal,
-                  grid: { display: isHorizontal, color: '#f1f5f920', drawBorder: false },
-                  ticks: { font: { size: 11, weight: 500 }, color: '#64748b', padding: 4 },
+                  grid: { display: isHorizontal, color: 'rgba(148,163,184,0.15)', drawBorder: false, drawTicks: false },
+                  ticks: {
+                    font: { size: 11, weight: 500, family: "'Inter', system-ui, sans-serif" }, color: '#64748b', padding: 6,
+                    autoSkip: true,
+                    maxRotation: isHorizontal ? 0 : (labels.length > 8 ? 35 : 0),
+                    minRotation: 0,
+                    callback: isHorizontal
+                      ? (v) => `${sym}${compactNumber(v)}`
+                      : function(value) { const lbl = this.getLabelForValue(value); return typeof lbl === 'string' && lbl.length > 14 ? lbl.slice(0, 13) + '…' : lbl; },
+                  },
                   border: { display: false },
                 },
                 y: {
                   stacked: isStacked,
                   beginAtZero: !isHorizontal,
-                  grid: { display: !isHorizontal, color: '#f1f5f920', drawBorder: false },
-                  ticks: { font: { size: 11, weight: 500 }, color: '#64748b', padding: 4 },
+                  grid: { display: !isHorizontal, color: 'rgba(148,163,184,0.15)', drawBorder: false, drawTicks: false },
+                  ticks: {
+                    font: { size: 11, weight: 500, family: "'Inter', system-ui, sans-serif" }, color: '#64748b', padding: 6,
+                    autoSkip: true,
+                    callback: !isHorizontal
+                      ? (v) => `${sym}${compactNumber(v)}`
+                      : function(value) { const lbl = this.getLabelForValue(value); return typeof lbl === 'string' && lbl.length > 16 ? lbl.slice(0, 15) + '…' : lbl; },
+                  },
                   border: { display: false },
                 },
               } : undefined,
             };
 
             const barData = (isStacked || isBalance)
-              ? { labels, datasets }
-              : { labels, datasets: [{ ...datasets[0], label: chart.label, borderRadius: 8 }] };
+              ? { labels, datasets: datasets.map(d => ({ ...d, borderRadius: 6, borderSkipped: false, maxBarThickness: 56 })) }
+              : { labels, datasets: [{ ...datasets[0], label: chart.label, borderRadius: 8, borderSkipped: false, maxBarThickness: 56 }] };
+
+            const activePlugins = [];
+            if (chart.showValues) activePlugins.push(ChartDataLabels);
+            if (isStacked) activePlugins.push(stackedTotalPlugin);
 
             return (
               <motion.div
                 key={chart.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
+                transition={{ delay: i * 0.08 }}
                 style={s.chartCard}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1e293b', letterSpacing: '-0.01em' }}>{chart.label}</h4>
-                  <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, gap: 8 }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#0f172a', letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{chart.label}</h4>
+                    {isPie && pieTotal > 0 && (
+                      <div style={{ fontSize: 11, color: '#64748b', fontWeight: 500, marginTop: 2 }}>
+                        Gesamt: <span style={{ color: '#0f172a', fontWeight: 700 }}>{sym} {pieTotal.toFixed(2).replace('.', ',')}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 2, alignItems: 'center', flexShrink: 0 }}>
                     {isPie && (
                       <button onClick={() => {
                         const updated = charts.map(c => c.id === chart.id ? { ...c, showPercent: !c.showPercent } : c);
@@ -867,21 +1125,23 @@ export default function Overview() {
 
                 {hasData ? (
                   <div style={{
-                    maxHeight: isHorizontal ? Math.max(220, labels.length * 44 + 60) : 320,
-                    padding: isPie ? '8px 0' : '4px 0',
+                    position: 'relative',
+                    height: containerHeight,
+                    width: '100%',
+                    padding: isPie ? '4px 0' : '0',
                   }}>
                     {isPie ? (
                       <Doughnut
                         data={{ labels, datasets }}
-                        options={{ ...chartOptions, cutout: '35%' }}
+                        options={{ ...chartOptions, cutout: '58%', radius: '92%' }}
                         plugins={chart.showValues ? [ChartDataLabels] : []}
                       />
                     ) : (
-                      <Bar data={barData} options={chartOptions} plugins={chart.showValues ? [ChartDataLabels] : []} />
+                      <Bar data={barData} options={chartOptions} plugins={activePlugins} />
                     )}
                   </div>
                 ) : (
-                  <div style={{ textAlign: 'center', padding: 30, color: '#94a3b8', fontSize: 14 }}>
+                  <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8', fontSize: 14 }}>
                     Keine Daten vorhanden
                   </div>
                 )}
