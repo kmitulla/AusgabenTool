@@ -158,7 +158,7 @@ export default function Expenses() {
 
   const formatAmount = (exp) => {
     const sym = currencySymbols[exp.currency] || exp.currency || '€';
-    return `${sym} ${parseFloat(exp.amount || 0).toFixed(2)}`;
+    return `${sym} ${parseFloat(exp.amount || 0).toFixed(2).replace('.', ',')}`;
   };
 
   if (!currentVacation) {
@@ -462,12 +462,12 @@ export default function Expenses() {
                             {/* Amount input when splitMode=amount */}
                             {splitMode === 'amount' && isChecked && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                                <input type="number" inputMode="decimal" step="0.01" min="0"
-                                  placeholder="0.00"
-                                  value={formData.paidForAmounts?.[p] ?? ''}
+                                <input type="text" inputMode="decimal" pattern="[0-9]*[,.]?[0-9]*"
+                                  placeholder="0,00"
+                                  value={((formData.paidForAmounts?.[p] ?? '')).toString().replace('.', ',')}
                                   onChange={e => setFormData(prev => ({
                                     ...prev,
-                                    paidForAmounts: { ...(prev.paidForAmounts || {}), [p]: e.target.value === '' ? '' : e.target.value },
+                                    paidForAmounts: { ...(prev.paidForAmounts || {}), [p]: e.target.value === '' ? '' : e.target.value.replace(',', '.') },
                                   }))}
                                   style={{ ...s.input, width: 70, padding: '6px 8px', fontSize: 13, textAlign: 'right' }} />
                                 <span style={{ fontSize: 12, color: '#64748b', flexShrink: 0 }}>{currencySymbols[formData.currency] || formData.currency}</span>
@@ -504,8 +504,8 @@ export default function Expenses() {
                       const isOk = Math.abs(remaining) < 0.02;
                       return (
                         <div style={{ fontSize: 12, color: isOk ? '#16a34a' : '#f59e0b', fontWeight: 600, paddingLeft: 4 }}>
-                          Zugeteilt: {allocated.toFixed(2)} / {totalAmt.toFixed(2)} {currencySymbols[formData.currency] || formData.currency}
-                          {!isOk && ` (Rest: ${remaining.toFixed(2)})`}
+                          Zugeteilt: {allocated.toFixed(2).replace('.', ',')} / {totalAmt.toFixed(2).replace('.', ',')} {currencySymbols[formData.currency] || formData.currency}
+                          {!isOk && ` (Rest: ${remaining.toFixed(2).replace('.', ',')})`}
                         </div>
                       );
                     })()}
@@ -515,12 +515,12 @@ export default function Expenses() {
                     ref={el => inputRefs.current[field.key] = el}
                     type="text"
                     inputMode="decimal"
-                    pattern="[0-9]*\.?[0-9]*"
+                    pattern="[0-9]*[,.]?[0-9]*"
                     placeholder={field.label}
-                    value={formData[field.key] || ''}
-                    onChange={e => setFormData(p => ({ ...p, [field.key]: e.target.value }))}
+                    value={(formData[field.key] || '').replace('.', ',')}
+                    onChange={e => setFormData(p => ({ ...p, [field.key]: e.target.value.replace(',', '.') }))}
                     onBlur={e => {
-                      const val = parseFloat(e.target.value);
+                      const val = parseFloat(e.target.value.replace(',', '.'));
                       if (!isNaN(val)) {
                         setFormData(p => ({ ...p, [field.key]: val.toFixed(2) }));
                       }
@@ -784,11 +784,11 @@ export default function Expenses() {
                     <input
                       type="text"
                       inputMode="decimal"
-                      pattern="[0-9]*\.?[0-9]*"
-                      value={editData[field.key] || ''}
-                      onChange={e => setEditData(p => ({ ...p, [field.key]: e.target.value }))}
+                      pattern="[0-9]*[,.]?[0-9]*"
+                      value={(editData[field.key] || '').replace('.', ',')}
+                      onChange={e => setEditData(p => ({ ...p, [field.key]: e.target.value.replace(',', '.') }))}
                       onBlur={e => {
-                        const val = parseFloat(e.target.value);
+                        const val = parseFloat(e.target.value.replace(',', '.'));
                         if (!isNaN(val)) {
                           setEditData(p => ({ ...p, [field.key]: val.toFixed(2) }));
                         }

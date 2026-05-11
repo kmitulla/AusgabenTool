@@ -705,7 +705,7 @@ export default function Overview() {
                       color: kpi.type === 'person_balance' ? (val > 0.01 ? '#16a34a' : val < -0.01 ? '#dc2626' : '#64748b') : '#1e293b',
                     }}
                   >
-                    {isCount ? Math.round(val) : kpi.type === 'person_balance' ? `${val > 0 ? '+' : ''}${sym} ${val.toFixed(2)}` : `${sym} ${val.toFixed(2)}`}
+                    {isCount ? Math.round(val) : kpi.type === 'person_balance' ? `${val > 0 ? '+' : ''}${sym} ${val.toFixed(2).replace('.', ',')}` : `${sym} ${val.toFixed(2).replace('.', ',')}`}
                   </motion.div>
                   <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>
                     {kpi.label || kpiTypeLabels[kpi.type]}
@@ -780,7 +780,7 @@ export default function Overview() {
                   callbacks: {
                     label: (ctx) => {
                       const val = ctx.parsed?.x ?? ctx.parsed?.y ?? ctx.parsed ?? ctx.raw ?? 0;
-                      const v = typeof val === 'number' ? val.toFixed(2) : val;
+                      const v = typeof val === 'number' ? val.toFixed(2).replace('.', ',') : val;
                       const base = (isStacked || isBalance)
                         ? ` ${ctx.dataset.label}: ${sym} ${v}`
                         : ` ${ctx.label}: ${sym} ${v}`;
