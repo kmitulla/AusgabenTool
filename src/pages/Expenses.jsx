@@ -55,11 +55,11 @@ export default function Expenses() {
     if (vf.amount !== false) fields.push({ key: 'amount', label: 'Betrag', type: 'number' });
     if (vf.currency !== false) fields.push({ key: 'currency', label: 'Währung', type: 'currency' });
     if (vf.category !== false) fields.push({ key: 'category', label: 'Kategorie', type: 'category' });
-    if (vf.date !== false) fields.push({ key: 'date', label: 'Datum', type: 'date' });
-    if (vf.time) fields.push({ key: 'time', label: 'Uhrzeit', type: 'time' });
     if (vf.note) fields.push({ key: 'note', label: 'Notiz', type: 'text' });
     if (sharedMode && vf.paidBy !== false) fields.push({ key: 'paidBy', label: 'Bezahlt von', type: 'paidBy' });
     if (sharedMode && vf.paidFor !== false) fields.push({ key: 'paidFor', label: 'Bezahlt für', type: 'paidFor' });
+    if (vf.time) fields.push({ key: 'time', label: 'Uhrzeit', type: 'time' });
+    if (vf.date !== false) fields.push({ key: 'date', label: 'Datum', type: 'date' });
     return fields;
   }, [vf, sharedMode]);
 
@@ -174,8 +174,16 @@ export default function Expenses() {
     page: { padding: '16px' },
     section: { marginBottom: 20 },
     sectionTitle: { fontSize: 15, fontWeight: 700, color: '#0c4a6e', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 },
-    card: { background: '#fff', borderRadius: 16, padding: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 12, border: '1px solid #e2e8f0' },
-    input: { width: '100%', padding: '12px 16px', borderRadius: 12, border: '2px solid #e2e8f0', fontSize: 15, outline: 'none', background: '#f8fafc', transition: 'border-color 0.2s', boxSizing: 'border-box' },
+    card: {
+      background: 'linear-gradient(160deg, rgba(255,255,255,0.94), rgba(255,255,255,0.82))',
+      backdropFilter: 'blur(18px) saturate(160%)',
+      WebkitBackdropFilter: 'blur(18px) saturate(160%)',
+      borderRadius: 18, padding: '18px 16px 16px',
+      boxShadow: '0 6px 18px -12px rgba(15,23,42,0.12), 0 1px 2px rgba(15,23,42,0.04)',
+      marginBottom: 14,
+      border: '1px solid rgba(255,255,255,0.7)',
+    },
+    input: { width: '100%', padding: '12px 14px', borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 15, outline: 'none', background: 'rgba(248,250,252,0.85)', transition: 'border-color 0.2s, background 0.2s', boxSizing: 'border-box', minWidth: 0 },
     btn: { padding: '12px 24px', borderRadius: 12, border: 'none', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s' },
     btnPrimary: { background: 'linear-gradient(135deg, #0ea5e9, #06b6d4)', color: '#fff' },
     btnDanger: { background: '#fee2e2', color: '#ef4444' },
@@ -184,7 +192,17 @@ export default function Expenses() {
     overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 },
     modal: { background: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 500, maxHeight: '85vh', overflow: 'auto' },
     fab: { position: 'fixed', bottom: 100, right: 20, width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg, #0ea5e9, #06b6d4)', color: '#fff', border: 'none', boxShadow: '0 4px 20px rgba(14,165,233,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 },
-    expenseCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', background: '#fff', borderRadius: 14, marginBottom: 8, boxShadow: '0 1px 6px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9', cursor: 'pointer' },
+    expenseCard: {
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '14px 16px',
+      background: 'linear-gradient(160deg, rgba(255,255,255,0.92), rgba(255,255,255,0.78))',
+      backdropFilter: 'blur(14px) saturate(160%)',
+      WebkitBackdropFilter: 'blur(14px) saturate(160%)',
+      borderRadius: 14, marginBottom: 8,
+      boxShadow: '0 2px 8px -4px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.04)',
+      border: '1px solid rgba(255,255,255,0.7)',
+      cursor: 'pointer',
+    },
     badge: { display: 'inline-block', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: '#f0f9ff', color: '#0ea5e9' },
     filterBar: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' },
     select: { padding: '10px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 14, background: '#f8fafc', outline: 'none', cursor: 'pointer', width: '100%', boxSizing: 'border-box' },

@@ -504,15 +504,16 @@ export default function Overview() {
     sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     sectionTitle: { fontSize: 16, fontWeight: 700, color: '#0c4a6e', display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.01em' },
     grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 14 },
-    // Subtle iOS-Liquid-Glass KPI tile — translucent frosted surface with a soft color halo peeking through
-    kpiCard: (a) => ({
+    // Subtle iOS-Liquid-Glass KPI tile — translucent frosted surface, soft rounded shadow, no colored halo
+    kpiCard: () => ({
       position: 'relative',
       borderRadius: 20,
       padding: '16px 16px 14px',
-      background: 'linear-gradient(160deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.62) 100%)',
+      background: 'linear-gradient(160deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.74) 100%)',
       backdropFilter: 'blur(22px) saturate(170%)',
       WebkitBackdropFilter: 'blur(22px) saturate(170%)',
-      boxShadow: `0 6px 18px -10px ${a.tint}55, 0 1px 3px rgba(15,23,42,0.05), inset 0 1px 0 rgba(255,255,255,0.9), inset 0 0 0 1px rgba(255,255,255,0.55)`,
+      boxShadow: '0 6px 16px -10px rgba(15,23,42,0.18), 0 1px 2px rgba(15,23,42,0.04)',
+      border: '1px solid rgba(255,255,255,0.7)',
       overflow: 'hidden',
       isolation: 'isolate',
       color: '#0f172a',
@@ -521,34 +522,23 @@ export default function Overview() {
       flexDirection: 'column',
       justifyContent: 'space-between',
     }),
-    // Soft white highlight on the top edge so it reads as glass
+    // Soft white highlight on the top edge for the glass feel
     kpiHighlight: {
       position: 'absolute',
       inset: 0,
-      background: 'radial-gradient(110% 70% at 0% -10%, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 55%)',
+      background: 'radial-gradient(120% 70% at 0% -10%, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 55%)',
       pointerEvents: 'none',
       zIndex: 0,
     },
-    // Colored halo peeks through the frosted surface — provides the personality without saturating the card
-    kpiGlow: (color) => ({
-      position: 'absolute',
-      width: 160, height: 160, borderRadius: '50%',
-      background: color,
-      filter: 'blur(50px)',
-      opacity: 0.22,
-      right: -50, bottom: -60,
-      pointerEvents: 'none',
-      zIndex: -1,
-    }),
     chartCard: {
       position: 'relative',
-      background: 'linear-gradient(160deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.78) 100%)',
+      background: 'linear-gradient(160deg, rgba(255,255,255,0.94) 0%, rgba(255,255,255,0.82) 100%)',
       backdropFilter: 'blur(18px) saturate(160%)',
       WebkitBackdropFilter: 'blur(18px) saturate(160%)',
       borderRadius: 20,
       padding: '20px 16px 16px',
-      boxShadow: '0 8px 24px -14px rgba(15,23,42,0.12), 0 1px 3px rgba(15,23,42,0.05), inset 0 1px 0 rgba(255,255,255,0.9)',
-      border: '1px solid rgba(255,255,255,0.6)',
+      boxShadow: '0 6px 18px -12px rgba(15,23,42,0.12), 0 1px 2px rgba(15,23,42,0.04)',
+      border: '1px solid rgba(255,255,255,0.7)',
       marginBottom: 20,
     },
     btn: { padding: '10px 18px', borderRadius: 12, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s' },
@@ -856,18 +846,16 @@ export default function Overview() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ delay: i * 0.04, type: 'spring', stiffness: 240, damping: 22 }}
                   whileHover={{ y: -2 }}
-                  style={s.kpiCard(accent)}
+                  style={s.kpiCard()}
                 >
-                  <div style={s.kpiGlow(accent.soft)} />
                   <div style={s.kpiHighlight} />
                   <div style={{ position: 'relative', zIndex: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{
-                      width: 34, height: 34, borderRadius: 11,
-                      background: `linear-gradient(135deg, ${accent.tint}, ${accent.soft})`,
+                      width: 32, height: 32, borderRadius: 10,
+                      background: `${accent.tint}14`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      boxShadow: `0 4px 10px -3px ${accent.tint}55, inset 0 1px 0 rgba(255,255,255,0.4)`,
                     }}>
-                      <Icon size={17} color="#fff" strokeWidth={2.4} />
+                      <Icon size={16} color={accent.tint} strokeWidth={2.2} />
                     </div>
                     <div style={{ display: 'flex', gap: 2 }}>
                       <button onClick={() => { setKpiForm({ ...kpi }); setEditKpi(kpi); setShowKpiModal(true); }} style={s.btnGhost}><Edit3 size={14} /></button>
