@@ -195,11 +195,12 @@ export default function Overview() {
       case 'daily_avg':
       case 'category_daily_avg': {
         const total = exps.reduce((sum, e) => sum + convertAmount(e.amount, e.exchangeRate, cur), 0);
-        const dates = exps.map(e => e.date).filter(Boolean).sort();
-        if (dates.length === 0) { result = 0; break; }
-        const first = new Date(dates[0] + 'T00:00:00');
-        const last = new Date(dates[dates.length - 1] + 'T00:00:00');
-        // duration = first day .. last day inclusive (e.g. 11.05. + 17.05. = 7 Tage)
+        // Denominator = full trip span (first to last *across all expenses*), not just the filtered subset —
+        // so excluding categories lowers the total but keeps the duration constant.
+        const allDates = (expenses || []).map(e => e.date).filter(Boolean).sort();
+        if (allDates.length === 0) { result = 0; break; }
+        const first = new Date(allDates[0] + 'T00:00:00');
+        const last = new Date(allDates[allDates.length - 1] + 'T00:00:00');
         const dayCount = Math.max(1, Math.round((last - first) / 86400000) + 1);
         result = total / dayCount;
         break;
@@ -1002,7 +1003,8 @@ export default function Overview() {
               maintainAspectRatio: false,
               indexAxis: isHorizontal ? 'y' : 'x',
               animation: { duration: 650, easing: 'easeOutQuart' },
-              layout: { padding: { top: isStacked && !isHorizontal ? 24 : 8, right: isStacked && isHorizontal ? 56 : 12, bottom: 4, left: 4 } },
+              // Reserve space so top/right value labels (and the stacked-total pill) never clip
+              layout: { padding: { top: !isHorizontal ? 28 : 8, right: isHorizontal ? 64 : 16, bottom: 4, left: 4 } },
               plugins: {
                 legend: {
                   display: isPie || isStacked || isBalance,
@@ -1113,6 +1115,8 @@ export default function Overview() {
                 x: {
                   stacked: isStacked,
                   beginAtZero: isHorizontal,
+                  // For horizontal charts the x-axis is the value axis → add headroom for right-aligned labels
+                  grace: isHorizontal ? '12%' : undefined,
                   grid: { display: isHorizontal, color: 'rgba(148,163,184,0.15)', drawBorder: false, drawTicks: false },
                   ticks: {
                     font: { size: 11, weight: 500, family: "'Inter', system-ui, sans-serif" }, color: '#64748b', padding: 6,
@@ -1128,6 +1132,8 @@ export default function Overview() {
                 y: {
                   stacked: isStacked,
                   beginAtZero: !isHorizontal,
+                  // For vertical charts the y-axis is the value axis → add headroom so top labels / total pill never clip
+                  grace: !isHorizontal ? '12%' : undefined,
                   grid: { display: !isHorizontal, color: 'rgba(148,163,184,0.15)', drawBorder: false, drawTicks: false },
                   ticks: {
                     font: { size: 11, weight: 500, family: "'Inter', system-ui, sans-serif" }, color: '#64748b', padding: 6,
