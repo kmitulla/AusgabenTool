@@ -235,12 +235,16 @@ export default function Overview() {
     const cur = chart.currency || displayCurrency;
     const exps = getExpensesByCategories(chart.categories, chart.mergedCategories, chart.persons || []);
     const grouped = {};
+    const breakdown = {}; // { label: [ {name, amount} ] } — used by tooltip drill-down
     const splitBy = chart.splitBy || 'category';
     exps.forEach(e => {
       const key = splitBy === 'person'
         ? (e.paidBy || 'Unbekannt')
         : (e.displayCategory || e.category || 'Sonstiges');
-      grouped[key] = (grouped[key] || 0) + convertAmount(e.amount, e.exchangeRate, cur);
+      const amt = convertAmount(e.amount, e.exchangeRate, cur);
+      grouped[key] = (grouped[key] || 0) + amt;
+      if (!breakdown[key]) breakdown[key] = [];
+      breakdown[key].push({ name: e.name || '(ohne Name)', amount: amt, date: e.date });
     });
 
     let labels = Object.keys(grouped);
@@ -272,6 +276,7 @@ export default function Overview() {
         spacing: isPie ? 1 : 0,
       }],
       sym,
+      breakdown,
     };
   };
 
@@ -283,12 +288,17 @@ export default function Overview() {
     const filterPersons = chart.persons || [];
 
     const order = chart.sortOrder || 'value_desc';
+    // For a stack the only end that should be rounded is the outermost (value end);
+    // the base sits on the axis and the inner edges abut other segments.
+    const stackRadius = (i, n) => n === 1 ? 5 : i === n - 1 ? 5 : 0;
+    const stackSkip = (i, n) => n === 1 ? 'start' : i === n - 1 ? 'start' : false;
 
     if (mode === 'category_person') {
       // X-axis = categories, stacks = persons
       const catSet = new Set();
       const personSet = new Set();
       const data = {};
+      const breakdown = {}; // breakdown[label][dataset] = [ {name, amount} ]
       exps.forEach(e => {
         const cat = e.displayCategory || e.category || 'Sonstiges';
         const person = e.paidBy || 'Unbekannt';
@@ -296,7 +306,11 @@ export default function Overview() {
         catSet.add(cat);
         personSet.add(person);
         if (!data[cat]) data[cat] = {};
-        data[cat][person] = (data[cat][person] || 0) + convertAmount(e.amount, e.exchangeRate, cur);
+        const amt = convertAmount(e.amount, e.exchangeRate, cur);
+        data[cat][person] = (data[cat][person] || 0) + amt;
+        if (!breakdown[cat]) breakdown[cat] = {};
+        if (!breakdown[cat][person]) breakdown[cat][person] = [];
+        breakdown[cat][person].push({ name: e.name || '(ohne Name)', amount: amt, date: e.date });
       });
       const origLabels = [...catSet];
       const persons = [...personSet];
@@ -307,16 +321,16 @@ export default function Overview() {
         label: p,
         data: idx.map(j => Math.round(((data[origLabels[j]]?.[p]) || 0) * 100) / 100),
         backgroundColor: COLORS[i % COLORS.length],
-        // round only the outermost edges of each stack
-        borderRadius: arr.length === 1 ? 6 : (i === 0 || i === arr.length - 1) ? 6 : 0,
-        borderSkipped: arr.length === 1 ? false : i === 0 ? 'end' : i === arr.length - 1 ? 'start' : false,
+        borderRadius: stackRadius(i, arr.length),
+        borderSkipped: stackSkip(i, arr.length),
       }));
-      return { labels, datasets, sym };
+      return { labels, datasets, sym, breakdown };
     } else {
       // X-axis = persons, stacks = categories
       const catSet = new Set();
       const personSet = new Set();
       const data = {};
+      const breakdown = {};
       exps.forEach(e => {
         const cat = e.displayCategory || e.category || 'Sonstiges';
         const person = e.paidBy || 'Unbekannt';
@@ -324,7 +338,11 @@ export default function Overview() {
         catSet.add(cat);
         personSet.add(person);
         if (!data[person]) data[person] = {};
-        data[person][cat] = (data[person][cat] || 0) + convertAmount(e.amount, e.exchangeRate, cur);
+        const amt = convertAmount(e.amount, e.exchangeRate, cur);
+        data[person][cat] = (data[person][cat] || 0) + amt;
+        if (!breakdown[person]) breakdown[person] = {};
+        if (!breakdown[person][cat]) breakdown[person][cat] = [];
+        breakdown[person][cat].push({ name: e.name || '(ohne Name)', amount: amt, date: e.date });
       });
       const origLabels = [...personSet];
       const cats = [...catSet];
@@ -335,10 +353,10 @@ export default function Overview() {
         label: cat,
         data: idx.map(j => Math.round(((data[origLabels[j]]?.[cat]) || 0) * 100) / 100),
         backgroundColor: COLORS[i % COLORS.length],
-        borderRadius: arr.length === 1 ? 6 : (i === 0 || i === arr.length - 1) ? 6 : 0,
-        borderSkipped: arr.length === 1 ? false : i === 0 ? 'end' : i === arr.length - 1 ? 'start' : false,
+        borderRadius: stackRadius(i, arr.length),
+        borderSkipped: stackSkip(i, arr.length),
       }));
-      return { labels, datasets, sym };
+      return { labels, datasets, sym, breakdown };
     }
   };
 
@@ -352,12 +370,15 @@ export default function Overview() {
 
     const { balances } = calculateDebts(exps, participants, payments);
 
-    // Calculate paid per person
+    // Calculate paid per person + per-person expense list for the tooltip
     const paid = {};
-    personsToShow.forEach(p => { paid[p] = 0; });
+    const breakdown = {};
+    personsToShow.forEach(p => { paid[p] = 0; breakdown[p] = { Bezahlt: [] }; });
     exps.forEach(e => {
       if (personsToShow.includes(e.paidBy)) {
-        paid[e.paidBy] = (paid[e.paidBy] || 0) + convertAmount(e.amount, e.exchangeRate, cur);
+        const amt = convertAmount(e.amount, e.exchangeRate, cur);
+        paid[e.paidBy] = (paid[e.paidBy] || 0) + amt;
+        breakdown[e.paidBy].Bezahlt.push({ name: e.name || '(ohne Name)', amount: amt, date: e.date });
       }
     });
 
@@ -377,16 +398,19 @@ export default function Overview() {
           label: 'Bezahlt',
           data: paidValues,
           backgroundColor: '#0ea5e9',
-          borderRadius: 6,
+          borderRadius: 5,
+          borderSkipped: 'start',
         },
         {
           label: 'Bilanz',
           data: balanceValues,
           backgroundColor: balanceValues.map(v => v >= 0 ? '#22c55e' : '#ef4444'),
-          borderRadius: 6,
+          borderRadius: 5,
+          borderSkipped: 'start',
         },
       ],
       sym,
+      breakdown,
     };
   };
 
@@ -443,6 +467,7 @@ export default function Overview() {
     const bucketSet = new Set();
     const groupSet = new Set();
     const data = {};
+    const bucketBreakdown = {}; // bucketBreakdown[formattedLabel][group] = [ {name, amount} ]
     exps.forEach(e => {
       const bucket = getTimeBucket(e);
       if (!bucket) return;
@@ -451,21 +476,28 @@ export default function Overview() {
         : (e.displayCategory || e.category || 'Sonstiges');
       bucketSet.add(bucket);
       groupSet.add(group);
+      const amt = convertAmount(e.amount, e.exchangeRate, cur);
       if (!data[bucket]) data[bucket] = {};
-      data[bucket][group] = (data[bucket][group] || 0) + convertAmount(e.amount, e.exchangeRate, cur);
+      data[bucket][group] = (data[bucket][group] || 0) + amt;
+      const formatted = formatBucket(bucket);
+      if (!bucketBreakdown[formatted]) bucketBreakdown[formatted] = {};
+      if (!bucketBreakdown[formatted][group]) bucketBreakdown[formatted][group] = [];
+      bucketBreakdown[formatted][group].push({ name: e.name || '(ohne Name)', amount: amt, date: e.date });
     });
 
     const sortedBuckets = [...bucketSet].sort();
     const labels = sortedBuckets.map(formatBucket);
     const groups = [...groupSet];
+    const stackRadius = (i, n) => n === 1 ? 5 : i === n - 1 ? 5 : 0;
+    const stackSkip = (i, n) => n === 1 ? 'start' : i === n - 1 ? 'start' : false;
     const datasets = groups.map((group, i, arr) => ({
       label: group,
       data: sortedBuckets.map(b => Math.round((data[b]?.[group] || 0) * 100) / 100),
       backgroundColor: COLORS[i % COLORS.length],
-      borderRadius: arr.length === 1 ? 6 : (i === 0 || i === arr.length - 1) ? 6 : 0,
-      borderSkipped: arr.length === 1 ? false : i === 0 ? 'end' : i === arr.length - 1 ? 'start' : false,
+      borderRadius: stackRadius(i, arr.length),
+      borderSkipped: stackSkip(i, arr.length),
     }));
-    return { labels, datasets, sym };
+    return { labels, datasets, sym, breakdown: bucketBreakdown };
   };
 
   const saveKpis = async (newKpis) => {
@@ -985,7 +1017,7 @@ export default function Overview() {
             const isHorizontal = chart.type === 'bar' || chart.type === 'stacked_bar' || chart.type === 'balance_bar' || chart.type === 'time_bar';
             const isPie = chart.type === 'pie';
             const chartData = isBalance ? getBalanceChartData(chart) : isGroupedStacked ? getStackedChartData(chart) : isTime ? getTimeChartData(chart) : getChartData(chart);
-            const { labels, datasets, sym } = chartData;
+            const { labels, datasets, sym, breakdown } = chartData;
             const hasData = labels.length > 0;
 
             // Compute total of pie for percentage / overlap logic
@@ -1044,8 +1076,9 @@ export default function Overview() {
                 },
                 tooltip: {
                   backgroundColor: 'rgba(15, 23, 42, 0.96)',
-                  titleFont: { size: 13, weight: 600, family: "'Inter', system-ui, sans-serif" },
+                  titleFont: { size: 13, weight: 700, family: "'Inter', system-ui, sans-serif" },
                   bodyFont: { size: 12, family: "'Inter', system-ui, sans-serif" },
+                  footerFont: { size: 11, weight: 500, family: "'Inter', system-ui, sans-serif", style: 'italic' },
                   padding: 12,
                   cornerRadius: 12,
                   displayColors: true,
@@ -1066,6 +1099,29 @@ export default function Overview() {
                         return `${base} (${pct}%)`;
                       }
                       return base;
+                    },
+                    // Drill-down: list the individual expenses behind the tapped segment
+                    afterBody: (items) => {
+                      if (!items || !items.length || !breakdown) return [];
+                      const ctx = items[0];
+                      let entries = [];
+                      if (isStacked || isBalance) {
+                        entries = (breakdown[ctx.label] && breakdown[ctx.label][ctx.dataset.label]) || [];
+                      } else {
+                        entries = breakdown[ctx.label] || [];
+                      }
+                      if (!entries.length) return [];
+                      const sorted = [...entries].sort((a, b) => b.amount - a.amount);
+                      const MAX = 6;
+                      const top = sorted.slice(0, MAX);
+                      const lines = ['', '— Einträge —'];
+                      top.forEach(e => {
+                        const a = e.amount.toFixed(2).replace('.', ',');
+                        const nm = e.name && e.name.length > 24 ? e.name.slice(0, 23) + '…' : e.name;
+                        lines.push(`• ${nm}  ${sym} ${a}`);
+                      });
+                      if (sorted.length > MAX) lines.push(`+ ${sorted.length - MAX} weitere`);
+                      return lines;
                     },
                   },
                 },
@@ -1089,11 +1145,13 @@ export default function Overview() {
                   formatter: (value, context) => {
                     if (value === 0 || value === null || value === undefined) return '';
                     if (isPie) {
+                      // Always show the Euro value on pie slices; percent toggle ADDS the % beneath it.
+                      const valueLine = `${sym}${compactNumber(value)}`;
+                      if (!chart.showPercent) return valueLine;
                       const meta = context.chart.getDatasetMeta(0);
                       const visibleTotal = context.dataset.data.reduce((sum, d, j) => sum + (meta.data[j]?.hidden ? 0 : (parseFloat(d) || 0)), 0) || 1;
                       const pct = ((value / visibleTotal) * 100).toFixed(0);
-                      if (chart.showPercent) return `${pct}%`;
-                      return `${sym}${compactNumber(value)}\n${pct}%`;
+                      return `${valueLine}\n${pct}%`;
                     }
                     return `${sym}${compactNumber(value)}`;
                   },
@@ -1150,7 +1208,8 @@ export default function Overview() {
             const barData = (isStacked || isBalance)
               // for true stacks the dataset generator already provides per-segment borderRadius / borderSkipped
               ? { labels, datasets: datasets.map(d => ({ ...d, maxBarThickness: 56 })) }
-              : { labels, datasets: [{ ...datasets[0], label: chart.label, borderRadius: 8, borderSkipped: false, maxBarThickness: 56 }] };
+              // Single-series bar/column: only the value-end (top / right) is rounded — base stays flat against the axis
+              : { labels, datasets: [{ ...datasets[0], label: chart.label, borderRadius: 5, borderSkipped: 'start', maxBarThickness: 56 }] };
 
             const activePlugins = [];
             if (chart.showValues) activePlugins.push(ChartDataLabels);
