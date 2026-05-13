@@ -133,7 +133,7 @@ export default function Overview() {
   const [editKpi, setEditKpi] = useState(null);
   const [editChart, setEditChart] = useState(null);
   const [kpiForm, setKpiForm] = useState({ type: 'total', label: '', categories: [], currency: 'EUR', mergedCategories: [], persons: [] });
-  const [chartForm, setChartForm] = useState({ type: 'pie', label: '', categories: [], currency: 'EUR', showValues: true, showPercent: false, mergedCategories: [], persons: [], stackMode: 'category_person', timeGranularity: 'day', timeStackBy: 'category', splitBy: 'category' });
+  const [chartForm, setChartForm] = useState({ type: 'pie', label: '', categories: [], currency: 'EUR', showValues: true, showPercent: false, mergedCategories: [], persons: [], stackMode: 'category_person', timeGranularity: 'day', timeStackBy: 'category', splitBy: 'category', sortOrder: 'value_desc' });
   const [mergeInput, setMergeInput] = useState({ name: '', categories: [] });
 
   const rates = currentVacation?.settings?.exchangeRates || { EUR: 1 };
@@ -195,8 +195,13 @@ export default function Overview() {
       case 'daily_avg':
       case 'category_daily_avg': {
         const total = exps.reduce((sum, e) => sum + convertAmount(e.amount, e.exchangeRate, cur), 0);
-        const days = new Set(exps.map(e => e.date).filter(Boolean));
-        result = days.size > 0 ? total / days.size : 0;
+        const dates = exps.map(e => e.date).filter(Boolean).sort();
+        if (dates.length === 0) { result = 0; break; }
+        const first = new Date(dates[0] + 'T00:00:00');
+        const last = new Date(dates[dates.length - 1] + 'T00:00:00');
+        // duration = first day .. last day inclusive (e.g. 11.05. + 17.05. = 7 Tage)
+        const dayCount = Math.max(1, Math.round((last - first) / 86400000) + 1);
+        result = total / dayCount;
         break;
       }
       case 'count':
@@ -214,6 +219,17 @@ export default function Overview() {
     return isNaN(result) ? 0 : result;
   };
 
+  // Returns the order in which labels should be displayed based on `order`
+  const sortIndices = (labels, totals, order) => {
+    const idx = labels.map((_, i) => i);
+    if (!order || order === 'none') return idx;
+    if (order === 'value_desc') idx.sort((a, b) => (totals[b] ?? 0) - (totals[a] ?? 0));
+    else if (order === 'value_asc') idx.sort((a, b) => (totals[a] ?? 0) - (totals[b] ?? 0));
+    else if (order === 'label_asc') idx.sort((a, b) => String(labels[a]).localeCompare(String(labels[b]), 'de'));
+    else if (order === 'label_desc') idx.sort((a, b) => String(labels[b]).localeCompare(String(labels[a]), 'de'));
+    return idx;
+  };
+
   const getChartData = (chart) => {
     const cur = chart.currency || displayCurrency;
     const exps = getExpensesByCategories(chart.categories, chart.mergedCategories, chart.persons || []);
@@ -226,23 +242,31 @@ export default function Overview() {
       grouped[key] = (grouped[key] || 0) + convertAmount(e.amount, e.exchangeRate, cur);
     });
 
-    const labels = Object.keys(grouped);
-    const values = Object.values(grouped).map(v => {
+    let labels = Object.keys(grouped);
+    let values = Object.values(grouped).map(v => {
       const rounded = Math.round(v * 100) / 100;
       return isNaN(rounded) ? 0 : rounded;
     });
+
+    // Apply sort
+    const order = chart.sortOrder || 'value_desc';
+    const sortedIdx = sortIndices(labels, values, order);
+    labels = sortedIdx.map(i => labels[i]);
+    values = sortedIdx.map(i => values[i]);
+
     const sym = currencySymbols[cur] || cur;
+    const colors = labels.map((_, i) => COLORS[i % COLORS.length]);
 
     const isPie = chart.type === 'pie';
     return {
       labels,
       datasets: [{
         data: values,
-        backgroundColor: labels.map((_, i) => COLORS[i % COLORS.length]),
-        borderColor: isPie ? '#ffffff' : labels.map((_, i) => COLORS[i % COLORS.length]),
+        backgroundColor: colors,
+        borderColor: isPie ? '#ffffff' : colors,
         borderWidth: isPie ? 2 : 0,
         borderRadius: isPie ? 0 : 10,
-        hoverBackgroundColor: labels.map((_, i) => COLORS[i % COLORS.length]),
+        hoverBackgroundColor: colors,
         hoverOffset: isPie ? 10 : 0,
         spacing: isPie ? 1 : 0,
       }],
@@ -256,6 +280,8 @@ export default function Overview() {
     const sym = currencySymbols[cur] || cur;
     const mode = chart.stackMode || 'category_person';
     const filterPersons = chart.persons || [];
+
+    const order = chart.sortOrder || 'value_desc';
 
     if (mode === 'category_person') {
       // X-axis = categories, stacks = persons
@@ -271,11 +297,14 @@ export default function Overview() {
         if (!data[cat]) data[cat] = {};
         data[cat][person] = (data[cat][person] || 0) + convertAmount(e.amount, e.exchangeRate, cur);
       });
-      const labels = [...catSet];
+      const origLabels = [...catSet];
       const persons = [...personSet];
+      const totals = origLabels.map(cat => persons.reduce((s, p) => s + (data[cat]?.[p] || 0), 0));
+      const idx = sortIndices(origLabels, totals, order);
+      const labels = idx.map(i => origLabels[i]);
       const datasets = persons.map((p, i, arr) => ({
         label: p,
-        data: labels.map(cat => Math.round((data[cat]?.[p] || 0) * 100) / 100),
+        data: idx.map(j => Math.round(((data[origLabels[j]]?.[p]) || 0) * 100) / 100),
         backgroundColor: COLORS[i % COLORS.length],
         // round only the outermost edges of each stack
         borderRadius: arr.length === 1 ? 6 : (i === 0 || i === arr.length - 1) ? 6 : 0,
@@ -296,11 +325,14 @@ export default function Overview() {
         if (!data[person]) data[person] = {};
         data[person][cat] = (data[person][cat] || 0) + convertAmount(e.amount, e.exchangeRate, cur);
       });
-      const labels = [...personSet];
+      const origLabels = [...personSet];
       const cats = [...catSet];
+      const totals = origLabels.map(p => cats.reduce((s, c) => s + (data[p]?.[c] || 0), 0));
+      const idx = sortIndices(origLabels, totals, order);
+      const labels = idx.map(i => origLabels[i]);
       const datasets = cats.map((cat, i, arr) => ({
         label: cat,
-        data: labels.map(p => Math.round((data[p]?.[cat] || 0) * 100) / 100),
+        data: idx.map(j => Math.round(((data[origLabels[j]]?.[cat]) || 0) * 100) / 100),
         backgroundColor: COLORS[i % COLORS.length],
         borderRadius: arr.length === 1 ? 6 : (i === 0 || i === arr.length - 1) ? 6 : 0,
         borderSkipped: arr.length === 1 ? false : i === 0 ? 'end' : i === arr.length - 1 ? 'start' : false,
@@ -328,9 +360,14 @@ export default function Overview() {
       }
     });
 
-    const labels = personsToShow;
-    const balanceValues = labels.map(p => Math.round((balances[p] || 0) * 100) / 100);
-    const paidValues = labels.map(p => Math.round((paid[p] || 0) * 100) / 100);
+    const origLabels = personsToShow;
+    const paidValuesAll = origLabels.map(p => Math.round((paid[p] || 0) * 100) / 100);
+    const balanceValuesAll = origLabels.map(p => Math.round((balances[p] || 0) * 100) / 100);
+    const order = chart.sortOrder || 'value_desc';
+    const idx = sortIndices(origLabels, paidValuesAll, order);
+    const labels = idx.map(i => origLabels[i]);
+    const paidValues = idx.map(i => paidValuesAll[i]);
+    const balanceValues = idx.map(i => balanceValuesAll[i]);
 
     return {
       labels,
@@ -458,7 +495,7 @@ export default function Overview() {
     await saveCharts(newCharts);
     setShowChartModal(false);
     setEditChart(null);
-    setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, showPercent: false, mergedCategories: [], persons: [], stackMode: 'category_person', timeGranularity: 'day', timeStackBy: 'category', splitBy: 'category' });
+    setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, showPercent: false, mergedCategories: [], persons: [], stackMode: 'category_person', timeGranularity: 'day', timeStackBy: 'category', splitBy: 'category', sortOrder: 'value_desc' });
   };
 
   const deleteKpi = async (id) => {
@@ -777,6 +814,28 @@ export default function Overview() {
                       </div>
                     </div>
                   )}
+                  {/* Sort order — applies to all non-time charts */}
+                  {form.type !== 'time_column' && form.type !== 'time_bar' && (
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={s.label}>Sortierung</label>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 6 }}>
+                        {[
+                          ['value_desc', 'Größe ↓'],
+                          ['value_asc', 'Größe ↑'],
+                          ['label_asc', 'A → Z'],
+                          ['label_desc', 'Z → A'],
+                          ['none', 'Original'],
+                        ].map(([k, lbl]) => (
+                          <button key={k} onClick={() => setForm(p => ({ ...p, sortOrder: k }))} style={{
+                            padding: '8px 10px', borderRadius: 10, border: 'none', fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                            background: (form.sortOrder || 'value_desc') === k ? '#0ea5e9' : '#f1f5f9',
+                            color: (form.sortOrder || 'value_desc') === k ? '#fff' : '#64748b',
+                            transition: 'all 0.2s',
+                          }}>{lbl}</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 
@@ -900,7 +959,7 @@ export default function Overview() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => {
-              setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, showPercent: false, mergedCategories: [], persons: [], stackMode: 'category_person', timeGranularity: 'day', timeStackBy: 'category', splitBy: 'category' });
+              setChartForm({ type: 'pie', label: '', categories: [], currency: displayCurrency, showValues: true, showPercent: false, mergedCategories: [], persons: [], stackMode: 'category_person', timeGranularity: 'day', timeStackBy: 'category', splitBy: 'category', sortOrder: 'value_desc' });
               setEditChart(null);
               setShowChartModal(true);
             }}
@@ -1123,7 +1182,7 @@ export default function Overview() {
                     }} style={s.btnGhost}>
                       {chart.showValues ? <Eye size={16} /> : <EyeOff size={16} />}
                     </button>
-                    <button onClick={() => { setChartForm({ ...chart, showPercent: chart.showPercent || false, stackMode: chart.stackMode || 'category_person', timeGranularity: chart.timeGranularity || 'day', timeStackBy: chart.timeStackBy || 'category', splitBy: chart.splitBy || 'category' }); setEditChart(chart); setShowChartModal(true); }} style={s.btnGhost}><Edit3 size={14} /></button>
+                    <button onClick={() => { setChartForm({ ...chart, showPercent: chart.showPercent || false, stackMode: chart.stackMode || 'category_person', timeGranularity: chart.timeGranularity || 'day', timeStackBy: chart.timeStackBy || 'category', splitBy: chart.splitBy || 'category', sortOrder: chart.sortOrder || 'value_desc' }); setEditChart(chart); setShowChartModal(true); }} style={s.btnGhost}><Edit3 size={14} /></button>
                     <button onClick={() => deleteChart(chart.id)} style={s.btnGhost}><Trash2 size={14} /></button>
                   </div>
                 </div>
