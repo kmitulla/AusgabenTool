@@ -29,6 +29,23 @@ const currencySymbols = { EUR: '€', USD: '$', GBP: '£', CHF: 'CHF', JPY: '¥'
 
 function genId() { return Math.random().toString(36).substring(2, 9); }
 
+// Scriptable helpers for stacked bars: round only the outermost *visible, non-zero* segment of each bar.
+// Because the topmost dataset can be zero (or hidden) for a given bar, this must be evaluated per data point.
+function isOuterStackSegment(context) {
+  const { chart, datasetIndex, dataIndex } = context;
+  const datasets = chart.data.datasets;
+  let lastIdx = -1;
+  for (let i = 0; i < datasets.length; i++) {
+    const meta = chart.getDatasetMeta(i);
+    if (meta && meta.hidden) continue;
+    const v = datasets[i].data[dataIndex];
+    if (typeof v === 'number' && Math.abs(v) > 0.0001) lastIdx = i;
+  }
+  return datasetIndex === lastIdx;
+}
+const stackBorderRadius = (ctx) => (isOuterStackSegment(ctx) ? 5 : 0);
+const stackBorderSkipped = (ctx) => (isOuterStackSegment(ctx) ? 'start' : false);
+
 // Compact number formatter for axis ticks (e.g. 12500 -> 12,5K)
 function compactNumber(value) {
   const v = Math.abs(value);
@@ -288,10 +305,6 @@ export default function Overview() {
     const filterPersons = chart.persons || [];
 
     const order = chart.sortOrder || 'value_desc';
-    // For a stack the only end that should be rounded is the outermost (value end);
-    // the base sits on the axis and the inner edges abut other segments.
-    const stackRadius = (i, n) => n === 1 ? 5 : i === n - 1 ? 5 : 0;
-    const stackSkip = (i, n) => n === 1 ? 'start' : i === n - 1 ? 'start' : false;
 
     if (mode === 'category_person') {
       // X-axis = categories, stacks = persons
@@ -317,12 +330,12 @@ export default function Overview() {
       const totals = origLabels.map(cat => persons.reduce((s, p) => s + (data[cat]?.[p] || 0), 0));
       const idx = sortIndices(origLabels, totals, order);
       const labels = idx.map(i => origLabels[i]);
-      const datasets = persons.map((p, i, arr) => ({
+      const datasets = persons.map((p, i) => ({
         label: p,
         data: idx.map(j => Math.round(((data[origLabels[j]]?.[p]) || 0) * 100) / 100),
         backgroundColor: COLORS[i % COLORS.length],
-        borderRadius: stackRadius(i, arr.length),
-        borderSkipped: stackSkip(i, arr.length),
+        borderRadius: stackBorderRadius,
+        borderSkipped: stackBorderSkipped,
       }));
       return { labels, datasets, sym, breakdown };
     } else {
@@ -349,12 +362,12 @@ export default function Overview() {
       const totals = origLabels.map(p => cats.reduce((s, c) => s + (data[p]?.[c] || 0), 0));
       const idx = sortIndices(origLabels, totals, order);
       const labels = idx.map(i => origLabels[i]);
-      const datasets = cats.map((cat, i, arr) => ({
+      const datasets = cats.map((cat, i) => ({
         label: cat,
         data: idx.map(j => Math.round(((data[origLabels[j]]?.[cat]) || 0) * 100) / 100),
         backgroundColor: COLORS[i % COLORS.length],
-        borderRadius: stackRadius(i, arr.length),
-        borderSkipped: stackSkip(i, arr.length),
+        borderRadius: stackBorderRadius,
+        borderSkipped: stackBorderSkipped,
       }));
       return { labels, datasets, sym, breakdown };
     }
@@ -488,14 +501,12 @@ export default function Overview() {
     const sortedBuckets = [...bucketSet].sort();
     const labels = sortedBuckets.map(formatBucket);
     const groups = [...groupSet];
-    const stackRadius = (i, n) => n === 1 ? 5 : i === n - 1 ? 5 : 0;
-    const stackSkip = (i, n) => n === 1 ? 'start' : i === n - 1 ? 'start' : false;
-    const datasets = groups.map((group, i, arr) => ({
+    const datasets = groups.map((group, i) => ({
       label: group,
       data: sortedBuckets.map(b => Math.round((data[b]?.[group] || 0) * 100) / 100),
       backgroundColor: COLORS[i % COLORS.length],
-      borderRadius: stackRadius(i, arr.length),
-      borderSkipped: stackSkip(i, arr.length),
+      borderRadius: stackBorderRadius,
+      borderSkipped: stackBorderSkipped,
     }));
     return { labels, datasets, sym, breakdown: bucketBreakdown };
   };
@@ -1087,7 +1098,11 @@ export default function Overview() {
                   borderWidth: 1,
                   callbacks: {
                     label: (ctx) => {
-                      const val = ctx.parsed?.x ?? ctx.parsed?.y ?? ctx.parsed ?? ctx.raw ?? 0;
+                      // Pick the *value* axis: vertical charts → y, horizontal → x, pie → parsed scalar
+                      let val;
+                      if (isPie) val = ctx.parsed ?? ctx.raw ?? 0;
+                      else if (isHorizontal) val = ctx.parsed?.x ?? ctx.raw ?? 0;
+                      else val = ctx.parsed?.y ?? ctx.raw ?? 0;
                       const v = typeof val === 'number' ? val.toFixed(2).replace('.', ',') : val;
                       const base = (isStacked || isBalance)
                         ? ` ${ctx.dataset.label}: ${sym} ${v}`
