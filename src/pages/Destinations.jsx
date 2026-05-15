@@ -5,6 +5,7 @@ import {
 } from '../utils/db';
 import { useVacation } from '../contexts/VacationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { sanitizeAmountInput, amountInputToNumeric } from '../utils/format';
 import {
   Plus, Trash2, Edit3, MapPin, Calendar, Clock, Users, StickyNote,
   Check, X, ChevronDown, ChevronUp, Archive, RotateCcw, Download,
@@ -848,7 +849,10 @@ export default function Destinations() {
                         inputMode="decimal"
                         pattern="[0-9]*[,.]?[0-9]*"
                         value={(cost.amount || '').toString().replace('.', ',')}
-                        onChange={e => updateCost(i, 'amount', e.target.value.replace(',', '.'))}
+                        onChange={e => {
+                          const clean = sanitizeAmountInput(e.target.value);
+                          updateCost(i, 'amount', amountInputToNumeric(clean));
+                        }}
                       />
                       {form.costs.length > 1 && (
                         <button style={{ ...styles.iconBtn('rgba(239,68,68,0.2)'), padding: '0.5rem' }} onClick={() => removeCost(i)}>
