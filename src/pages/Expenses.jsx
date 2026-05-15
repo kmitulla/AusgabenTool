@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createExpense, updateExpense, deleteExpense, updateVacation, importCategories, getVacations } from '../utils/db';
+import { sanitizeAmountInput, amountInputToNumeric } from '../utils/format';
 import { useVacation } from '../contexts/VacationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Plus, Trash2, Edit3, Filter, ArrowUpDown, Search, Tag, X, Check, ChevronDown, Upload, ArrowUp, ArrowDown } from 'lucide-react';
@@ -483,10 +484,13 @@ export default function Expenses() {
                                 <input type="text" inputMode="decimal" pattern="[0-9]*[,.]?[0-9]*"
                                   placeholder="0,00"
                                   value={((formData.paidForAmounts?.[p] ?? '')).toString().replace('.', ',')}
-                                  onChange={e => setFormData(prev => ({
-                                    ...prev,
-                                    paidForAmounts: { ...(prev.paidForAmounts || {}), [p]: e.target.value === '' ? '' : e.target.value.replace(',', '.') },
-                                  }))}
+                                  onChange={e => {
+                                    const clean = sanitizeAmountInput(e.target.value);
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      paidForAmounts: { ...(prev.paidForAmounts || {}), [p]: clean === '' ? '' : amountInputToNumeric(clean) },
+                                    }));
+                                  }}
                                   style={{ ...s.input, width: 70, padding: '6px 8px', fontSize: 13, textAlign: 'right' }} />
                                 <span style={{ fontSize: 12, color: '#64748b', flexShrink: 0 }}>{currencySymbols[formData.currency] || formData.currency}</span>
                               </div>
@@ -536,9 +540,12 @@ export default function Expenses() {
                     pattern="[0-9]*[,.]?[0-9]*"
                     placeholder={field.label}
                     value={(formData[field.key] || '').replace('.', ',')}
-                    onChange={e => setFormData(p => ({ ...p, [field.key]: e.target.value.replace(',', '.') }))}
+                    onChange={e => {
+                      const clean = sanitizeAmountInput(e.target.value);
+                      setFormData(p => ({ ...p, [field.key]: amountInputToNumeric(clean) }));
+                    }}
                     onBlur={e => {
-                      const val = parseFloat(e.target.value.replace(',', '.'));
+                      const val = parseFloat(amountInputToNumeric(e.target.value));
                       if (!isNaN(val)) {
                         setFormData(p => ({ ...p, [field.key]: val.toFixed(2) }));
                       }
@@ -804,9 +811,12 @@ export default function Expenses() {
                       inputMode="decimal"
                       pattern="[0-9]*[,.]?[0-9]*"
                       value={(editData[field.key] || '').replace('.', ',')}
-                      onChange={e => setEditData(p => ({ ...p, [field.key]: e.target.value.replace(',', '.') }))}
+                      onChange={e => {
+                        const clean = sanitizeAmountInput(e.target.value);
+                        setEditData(p => ({ ...p, [field.key]: amountInputToNumeric(clean) }));
+                      }}
                       onBlur={e => {
-                        const val = parseFloat(e.target.value.replace(',', '.'));
+                        const val = parseFloat(amountInputToNumeric(e.target.value));
                         if (!isNaN(val)) {
                           setEditData(p => ({ ...p, [field.key]: val.toFixed(2) }));
                         }
@@ -959,9 +969,12 @@ export default function Expenses() {
                               )}
                               {splitMode === 'amount' && isChecked && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                                  <input type="number" inputMode="decimal" step="0.01" min="0" placeholder="0.00"
-                                    value={editData.paidForAmounts?.[p] ?? ''}
-                                    onChange={e => setEditData(prev => ({ ...prev, paidForAmounts: { ...(prev.paidForAmounts || {}), [p]: e.target.value === '' ? '' : e.target.value } }))}
+                                  <input type="text" inputMode="decimal" pattern="[0-9]*[,.]?[0-9]*" placeholder="0,00"
+                                    value={(editData.paidForAmounts?.[p] ?? '').toString().replace('.', ',')}
+                                    onChange={e => {
+                                      const clean = sanitizeAmountInput(e.target.value);
+                                      setEditData(prev => ({ ...prev, paidForAmounts: { ...(prev.paidForAmounts || {}), [p]: clean === '' ? '' : amountInputToNumeric(clean) } }));
+                                    }}
                                     style={{ ...s.input, width: 70, padding: '6px 8px', fontSize: 13, textAlign: 'right' }} />
                                   <span style={{ fontSize: 12, color: '#64748b', flexShrink: 0 }}>{currencySymbols[editData.currency] || editData.currency}</span>
                                 </div>

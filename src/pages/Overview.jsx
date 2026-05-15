@@ -147,6 +147,9 @@ export default function Overview() {
   const { currentVacation, expenses, refreshVacation } = useVacation();
   const [showKpiModal, setShowKpiModal] = useState(false);
   const [showChartModal, setShowChartModal] = useState(false);
+  // Drill-down modal opened by tapping a chart segment — shows the full
+  // (scrollable) list of expenses behind that slice / bar.
+  const [drillDown, setDrillDown] = useState(null);
   const [editKpi, setEditKpi] = useState(null);
   const [editChart, setEditChart] = useState(null);
   const [kpiForm, setKpiForm] = useState({ type: 'total', label: '', categories: [], currency: 'EUR', mergedCategories: [], persons: [] });
@@ -1048,6 +1051,29 @@ export default function Overview() {
               animation: { duration: 650, easing: 'easeOutQuart' },
               // Reserve space so top/right value labels (and the stacked-total pill) never clip
               layout: { padding: { top: !isHorizontal ? 28 : 8, right: isHorizontal ? 64 : 16, bottom: 4, left: 4 } },
+              // Tap on any segment → open a scrollable drill-down modal listing every individual expense
+              onClick: (_evt, els, c) => {
+                if (!els || !els.length) return;
+                const el = els[0];
+                const dsIdx = el.datasetIndex;
+                const idx = el.index;
+                const segLabel = c.data.labels[idx];
+                const datasetLabel = c.data.datasets[dsIdx]?.label;
+                let entries = [];
+                let title = segLabel;
+                let subtitle = '';
+                let color = c.data.datasets[dsIdx]?.backgroundColor;
+                if (Array.isArray(color)) color = color[idx];
+                if ((isStacked || isBalance) && breakdown) {
+                  entries = (breakdown[segLabel] && breakdown[segLabel][datasetLabel]) || [];
+                  subtitle = datasetLabel || '';
+                } else if (breakdown) {
+                  entries = breakdown[segLabel] || [];
+                }
+                if (!entries.length) return;
+                const total = entries.reduce((s, e) => s + (e.amount || 0), 0);
+                setDrillDown({ title, subtitle, entries: [...entries].sort((a, b) => b.amount - a.amount), total, sym, color });
+              },
               plugins: {
                 legend: {
                   display: isPie || isStacked || isBalance,
@@ -1127,7 +1153,7 @@ export default function Overview() {
                       }
                       if (!entries.length) return [];
                       const sorted = [...entries].sort((a, b) => b.amount - a.amount);
-                      const MAX = 6;
+                      const MAX = 12;
                       const top = sorted.slice(0, MAX);
                       const lines = ['', '— Einträge —'];
                       top.forEach(e => {
@@ -1135,7 +1161,8 @@ export default function Overview() {
                         const nm = e.name && e.name.length > 24 ? e.name.slice(0, 23) + '…' : e.name;
                         lines.push(`• ${nm}  ${sym} ${a}`);
                       });
-                      if (sorted.length > MAX) lines.push(`+ ${sorted.length - MAX} weitere`);
+                      if (sorted.length > MAX) lines.push(`+ ${sorted.length - MAX} weitere – tippen für alle`);
+                      else if (sorted.length > 3) lines.push('Tippen für Details');
                       return lines;
                     },
                   },
@@ -1298,6 +1325,88 @@ export default function Overview() {
       {/* Modals */}
       {renderModal(true)}
       {renderModal(false)}
+
+      {/* Drill-down modal: shows every expense behind the tapped segment, scrollable */}
+      <AnimatePresence>
+        {drillDown && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.55)',
+              backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 2000,
+              paddingTop: 'max(1rem, env(safe-area-inset-top))',
+              paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+              paddingLeft: 'max(0.75rem, env(safe-area-inset-left))',
+              paddingRight: 'max(0.75rem, env(safe-area-inset-right))',
+            }}
+            onClick={() => setDrillDown(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 24, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 24, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+              onClick={e => e.stopPropagation()}
+              style={{
+                background: 'linear-gradient(160deg, rgba(255,255,255,0.96), rgba(255,255,255,0.82))',
+                backdropFilter: 'blur(22px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(22px) saturate(180%)',
+                borderRadius: 22, width: '100%', maxWidth: 460,
+                maxHeight: '85vh', display: 'flex', flexDirection: 'column',
+                border: '1px solid rgba(255,255,255,0.7)',
+                boxShadow: '0 24px 60px -20px rgba(15,23,42,0.35), inset 0 1px 0 rgba(255,255,255,0.9)',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ padding: '18px 18px 12px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid rgba(226,232,240,0.6)' }}>
+                <div style={{
+                  width: 12, height: 12, borderRadius: 4, flexShrink: 0,
+                  background: drillDown.color || '#0ea5e9',
+                  boxShadow: `0 0 0 1px rgba(15,23,42,0.06)`,
+                }} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {drillDown.title}
+                    {drillDown.subtitle ? <span style={{ color: '#64748b', fontWeight: 500 }}> · {drillDown.subtitle}</span> : null}
+                  </div>
+                  <div style={{ fontSize: 13, color: '#475569', marginTop: 2 }}>
+                    {drillDown.entries.length} {drillDown.entries.length === 1 ? 'Eintrag' : 'Einträge'} · Gesamt {drillDown.sym} {drillDown.total.toFixed(2).replace('.', ',')}
+                  </div>
+                </div>
+                <button onClick={() => setDrillDown(null)} style={{ background: 'rgba(15,23,42,0.06)', border: 'none', borderRadius: 10, padding: 6, cursor: 'pointer', color: '#475569', flexShrink: 0 }}>
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '6px 8px 12px', flex: 1 }}>
+                {drillDown.entries.map((e, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 12px', borderRadius: 12,
+                    background: idx % 2 === 0 ? 'rgba(248,250,252,0.5)' : 'transparent',
+                  }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {e.name || '(ohne Name)'}
+                      </div>
+                      {e.date && (
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                          {new Date(e.date + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                      {drillDown.sym} {e.amount.toFixed(2).replace('.', ',')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
