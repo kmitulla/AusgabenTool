@@ -1037,12 +1037,28 @@ export default function Overview() {
             // Compute total of pie for percentage / overlap logic
             const pieTotal = isPie && datasets[0] ? datasets[0].data.reduce((a, b) => a + (parseFloat(b) || 0), 0) : 0;
 
-            // Dynamic chart container height — gives bars room to breathe and reserves space for the total pill on stacked charts
+            // Vertical column charts: pick a rotation that fits every label and reserve
+            // enough vertical room so the bottom of long rotated labels never gets clipped.
+            const maxXLabelLen = !isHorizontal && labels.length > 0
+              ? labels.reduce((m, l) => Math.max(m, String(l).length), 0)
+              : 0;
+            const xRotation = !isHorizontal
+              ? (labels.length > 10 || maxXLabelLen > 12 ? 60
+                : labels.length > 6 || maxXLabelLen > 8 ? 45
+                : labels.length > 4 ? 30
+                : 0)
+              : 0;
+            // Approx vertical pixels a rotated label needs (font ≈ 11 px, char ≈ 6.5 px wide)
+            const xLabelExtra = xRotation > 0
+              ? Math.ceil(maxXLabelLen * 6.8 * Math.sin(xRotation * Math.PI / 180)) + 18
+              : 0;
+
+            // Dynamic chart container height — grows with bar count, and extends for rotated x-labels
             const containerHeight = isPie
               ? (labels.length > 8 ? 360 : 300)
               : isHorizontal
                 ? Math.max(240, labels.length * 38 + 80)
-                : Math.max(280, Math.min(420, labels.length * 36 + 120));
+                : Math.max(300, Math.min(440, labels.length * 32 + 110)) + xLabelExtra;
 
             const chartOptions = {
               responsive: true,
@@ -1220,12 +1236,13 @@ export default function Overview() {
                   grid: { display: isHorizontal, color: 'rgba(148,163,184,0.15)', drawBorder: false, drawTicks: false },
                   ticks: {
                     font: { size: 11, weight: 500, family: "'Inter', system-ui, sans-serif" }, color: '#64748b', padding: 6,
-                    autoSkip: true,
-                    maxRotation: isHorizontal ? 0 : (labels.length > 8 ? 35 : 0),
-                    minRotation: 0,
+                    // Force every label to render even when space is tight — the rotation below ensures they fit
+                    autoSkip: false,
+                    maxRotation: isHorizontal ? 0 : xRotation,
+                    minRotation: isHorizontal ? 0 : xRotation,
                     callback: isHorizontal
                       ? (v) => `${sym}${compactNumber(v)}`
-                      : function(value) { const lbl = this.getLabelForValue(value); return typeof lbl === 'string' && lbl.length > 14 ? lbl.slice(0, 13) + '…' : lbl; },
+                      : function(value) { const lbl = this.getLabelForValue(value); return typeof lbl === 'string' && lbl.length > 18 ? lbl.slice(0, 17) + '…' : lbl; },
                   },
                   border: { display: false },
                 },
