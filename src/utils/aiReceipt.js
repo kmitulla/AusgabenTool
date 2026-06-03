@@ -6,6 +6,15 @@
 // Default-Modell – bewusst ein weit verfügbares Vision-fähiges Modell.
 export const DEFAULT_AI_MODEL = 'gpt-4o';
 
+// Auswählbare Vision-fähige OpenAI-Modelle (für die Modellauswahl in den Einstellungen).
+export const AI_MODEL_OPTIONS = [
+  { value: 'gpt-4o', label: 'GPT-4o (empfohlen)' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o mini (günstiger)' },
+  { value: 'gpt-4.1', label: 'GPT-4.1' },
+  { value: 'gpt-4.1-mini', label: 'GPT-4.1 mini' },
+  { value: 'o4-mini', label: 'o4-mini' },
+];
+
 // Liest eine Bilddatei ein und skaliert sie auf eine vernünftige Größe herunter,
 // damit der Upload klein bleibt und die Erkennung trotzdem zuverlässig ist.
 // Gibt eine JPEG-Data-URL zurück.

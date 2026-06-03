@@ -5,6 +5,7 @@ import { updateUser } from '../utils/db';
 import { useVacation } from '../contexts/VacationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { exportAsImage, exportAsExcel } from '../utils/exportUtils';
+import { DEFAULT_AI_MODEL, AI_MODEL_OPTIONS } from '../utils/aiReceipt';
 import { Settings as SettingsIcon, DollarSign, Eye, EyeOff, Users, Download, Key, LogOut, ChevronDown, ChevronUp, Plus, Trash2, Save, X, Image, FileSpreadsheet, UserCog, User, Info, Edit3, Sparkles } from 'lucide-react';
 
 const styles = {
@@ -391,18 +392,20 @@ export default function Settings({ onAdminPanel, onLogout }) {
   const [apiKey, setApiKey] = useState(currentUser?.openaiApiKey || '');
   const [showApiKey, setShowApiKey] = useState(false);
   const [savingApiKey, setSavingApiKey] = useState(false);
+  const [aiModel, setAiModel] = useState(currentUser?.openaiModel || DEFAULT_AI_MODEL);
 
   useEffect(() => {
     setApiKey(currentUser?.openaiApiKey || '');
-  }, [currentUser?.openaiApiKey]);
+    setAiModel(currentUser?.openaiModel || DEFAULT_AI_MODEL);
+  }, [currentUser?.openaiApiKey, currentUser?.openaiModel]);
 
   const handleSaveApiKey = async () => {
     if (!currentUser) return;
     setSavingApiKey(true);
     try {
-      await updateUser(currentUser.id, { openaiApiKey: apiKey.trim() });
+      await updateUser(currentUser.id, { openaiApiKey: apiKey.trim(), openaiModel: aiModel });
       await refreshUser();
-      showToast(apiKey.trim() ? 'API-Key gespeichert' : 'API-Key entfernt');
+      showToast(apiKey.trim() ? 'Einstellungen gespeichert' : 'API-Key entfernt');
     } catch (e) {
       showToast('Fehler beim Speichern');
     }
@@ -934,12 +937,25 @@ export default function Settings({ onAdminPanel, onLogout }) {
             </div>
           </div>
 
+          <div style={styles.inputGroup}>
+            <label style={styles.inputLabel}>KI-Modell</label>
+            <select
+              style={{ ...styles.select, marginTop: 0 }}
+              value={aiModel}
+              onChange={(e) => setAiModel(e.target.value)}
+            >
+              {AI_MODEL_OPTIONS.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
+
           <button
             style={{ ...styles.primaryBtn, opacity: savingApiKey ? 0.7 : 1 }}
             onClick={handleSaveApiKey}
             disabled={savingApiKey}
           >
-            <Save size={17} /> {savingApiKey ? 'Speichern…' : 'API-Key speichern'}
+            <Save size={17} /> {savingApiKey ? 'Speichern…' : 'API-Key & Modell speichern'}
           </button>
 
           <div style={{ ...styles.warning, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>

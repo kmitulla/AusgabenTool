@@ -2,10 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createExpense, updateExpense, deleteExpense, updateVacation, importCategories, getVacations } from '../utils/db';
 import { sanitizeAmountInput, amountInputToNumeric } from '../utils/format';
-import { scanReceiptImage, fileToDataUrl, buildNotesFromItems } from '../utils/aiReceipt';
+import { scanReceiptImage, fileToDataUrl, buildNotesFromItems, DEFAULT_AI_MODEL } from '../utils/aiReceipt';
 import { useVacation } from '../contexts/VacationContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, Trash2, Edit3, Filter, ArrowUpDown, Search, Tag, X, Check, ChevronDown, Upload, ArrowUp, ArrowDown, Sparkles, Camera } from 'lucide-react';
+import { Plus, Trash2, Edit3, Filter, ArrowUpDown, Search, Tag, X, Check, ChevronDown, Upload, ArrowUp, ArrowDown, Sparkles, Camera, Image } from 'lucide-react';
 
 const currencySymbols = { EUR: '€', USD: '$', GBP: '£', CHF: 'CHF', JPY: '¥', TRY: '₺', THB: '฿', SEK: 'kr', NOK: 'kr', DKK: 'kr', PLN: 'zł', CZK: 'Kč', HUF: 'Ft', HRK: 'kn', BGN: 'лв', RON: 'lei' };
 
@@ -37,7 +37,8 @@ export default function Expenses() {
 
   const inputRefs = useRef({});
   const formTopRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
 
   // AI receipt scanner state
   const [scanning, setScanning] = useState(false);
@@ -148,8 +149,10 @@ export default function Expenses() {
 
   // --- AI receipt scanner ---
   const apiKey = currentUser?.openaiApiKey || '';
+  const aiModel = currentUser?.openaiModel || DEFAULT_AI_MODEL;
 
-  const handleScanClick = () => {
+  // source: 'camera' (Kamera öffnen) oder 'gallery' (Bild aus Galerie wählen)
+  const handleScanClick = (source = 'camera') => {
     setScanError('');
     setScanInfo('');
     if (!apiKey) {
@@ -157,7 +160,8 @@ export default function Expenses() {
       setShowAddForm(true);
       return;
     }
-    fileInputRef.current?.click();
+    if (source === 'gallery') galleryInputRef.current?.click();
+    else cameraInputRef.current?.click();
   };
 
   const handleScanFile = async (e) => {
@@ -169,7 +173,7 @@ export default function Expenses() {
     setScanning(true);
     try {
       const dataUrl = await fileToDataUrl(file);
-      const result = await scanReceiptImage({ dataUrl, apiKey, categories });
+      const result = await scanReceiptImage({ dataUrl, apiKey, categories, model: aiModel });
 
       const detectedCur = result.currency && exchangeRates[result.currency] ? result.currency : defaultCurrency;
       const sym = currencySymbols[detectedCur] || detectedCur || '€';
@@ -285,12 +289,21 @@ export default function Expenses() {
 
   return (
     <div style={s.page} ref={formTopRef}>
-      {/* Hidden file input for receipt scanning (camera or gallery) */}
+      {/* Hidden file inputs for receipt scanning */}
+      {/* Kamera (öffnet auf dem Handy direkt die Kamera) */}
       <input
-        ref={fileInputRef}
+        ref={cameraInputRef}
         type="file"
         accept="image/*"
         capture="environment"
+        style={{ display: 'none' }}
+        onChange={handleScanFile}
+      />
+      {/* Galerie / Datei (ohne capture → Auswahl aus Fotos/Dateien) */}
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
         style={{ display: 'none' }}
         onChange={handleScanFile}
       />
@@ -318,11 +331,20 @@ export default function Expenses() {
       {!showAddForm && canCreate && (
         <>
           <motion.button
+            style={{ ...s.fab, bottom: 236, background: 'linear-gradient(135deg, #6366f1, #4f46e5)', boxShadow: '0 4px 20px rgba(99,102,241,0.4)' }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => handleScanClick('gallery')}
+            title="Beleg aus Galerie hochladen"
+          >
+            <Image size={24} />
+          </motion.button>
+          <motion.button
             style={{ ...s.fab, bottom: 168, background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', boxShadow: '0 4px 20px rgba(139,92,246,0.4)' }}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            onClick={handleScanClick}
-            title="Beleg mit KI scannen"
+            onClick={() => handleScanClick('camera')}
+            title="Beleg mit Kamera scannen"
           >
             <Camera size={24} />
           </motion.button>
@@ -351,19 +373,33 @@ export default function Expenses() {
               <button onClick={() => setShowAddForm(false)} style={{ ...s.btnGhost, padding: 4 }}><X size={20} /></button>
             </div>
 
-            {/* KI Beleg-Scan */}
-            <button
-              type="button"
-              onClick={handleScanClick}
-              disabled={scanning}
-              style={{
-                ...s.btn, width: '100%', marginBottom: 12, opacity: scanning ? 0.7 : 1,
-                background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', color: '#fff',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              }}
-            >
-              <Sparkles size={16} /> {scanning ? 'Analysiere…' : 'Beleg mit KI scannen'}
-            </button>
+            {/* KI Beleg-Scan: Kamera oder Galerie */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <button
+                type="button"
+                onClick={() => handleScanClick('camera')}
+                disabled={scanning}
+                style={{
+                  ...s.btn, flex: 1, opacity: scanning ? 0.7 : 1,
+                  background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}
+              >
+                <Camera size={16} /> {scanning ? 'Analysiere…' : 'Foto aufnehmen'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleScanClick('gallery')}
+                disabled={scanning}
+                style={{
+                  ...s.btn, flex: 1, opacity: scanning ? 0.7 : 1,
+                  background: '#eef2ff', color: '#4f46e5',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}
+              >
+                <Image size={16} /> Galerie
+              </button>
+            </div>
 
             <AnimatePresence>
               {scanInfo && (
