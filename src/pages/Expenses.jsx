@@ -2,9 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createExpense, updateExpense, deleteExpense, updateVacation, importCategories, getVacations } from '../utils/db';
 import { sanitizeAmountInput, amountInputToNumeric } from '../utils/format';
+import { scanReceiptImage, fileToDataUrl, buildNotesFromItems } from '../utils/aiReceipt';
 import { useVacation } from '../contexts/VacationContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Plus, Trash2, Edit3, Filter, ArrowUpDown, Search, Tag, X, Check, ChevronDown, Upload, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Trash2, Edit3, Filter, ArrowUpDown, Search, Tag, X, Check, ChevronDown, Upload, ArrowUp, ArrowDown, Sparkles, Camera } from 'lucide-react';
 
 const currencySymbols = { EUR: '€', USD: '$', GBP: '£', CHF: 'CHF', JPY: '¥', TRY: '₺', THB: '฿', SEK: 'kr', NOK: 'kr', DKK: 'kr', PLN: 'zł', CZK: 'Kč', HUF: 'Ft', HRK: 'kn', BGN: 'лв', RON: 'lei' };
 
@@ -36,6 +37,12 @@ export default function Expenses() {
 
   const inputRefs = useRef({});
   const formTopRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  // AI receipt scanner state
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState('');
+  const [scanInfo, setScanInfo] = useState('');
 
   const vf = currentVacation?.settings?.visibleFields || {};
   const sharedMode = currentVacation?.settings?.sharedMode;
@@ -139,6 +146,73 @@ export default function Expenses() {
     setShowImportModal(false);
   };
 
+  // --- AI receipt scanner ---
+  const apiKey = currentUser?.openaiApiKey || '';
+
+  const handleScanClick = () => {
+    setScanError('');
+    setScanInfo('');
+    if (!apiKey) {
+      setScanError('Bitte zuerst deinen OpenAI API-Key in den Einstellungen (KI Beleg-Scanner) hinterlegen.');
+      setShowAddForm(true);
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
+  const handleScanFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file
+    if (!file) return;
+    setScanError('');
+    setScanInfo('');
+    setScanning(true);
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      const result = await scanReceiptImage({ dataUrl, apiKey, categories });
+
+      const detectedCur = result.currency && exchangeRates[result.currency] ? result.currency : defaultCurrency;
+      const sym = currencySymbols[detectedCur] || detectedCur || '€';
+      const note = buildNotesFromItems(result.items, sym);
+
+      const today = new Date().toISOString().split('T')[0];
+      const equalShare = participants.length > 0 ? parseFloat((100 / participants.length).toFixed(2)) : 0;
+      const defaultShares = {};
+      participants.forEach(p => { defaultShares[p] = equalShare; });
+
+      setFormData({
+        name: result.merchant || '',
+        amount: result.total != null ? result.total.toFixed(2) : '',
+        currency: detectedCur,
+        exchangeRate: exchangeRates[detectedCur] || 1,
+        category: result.category || '',
+        date: result.date || today,
+        time: '',
+        note,
+        paidBy: participants[0] || '',
+        paidFor: [...participants],
+        paidForShares: defaultShares,
+        paidForAmounts: {},
+        directlyPaid: {},
+        splitMode: 'equal',
+      });
+      setCategorySearch(result.category || '');
+      setShowNewCategoryInput(false);
+      setNewCategoryName('');
+      setShowAddForm(true);
+
+      const count = (result.items || []).length;
+      setScanInfo(count > 0
+        ? `Beleg erkannt: ${count} Position${count === 1 ? '' : 'en'}. Bitte prüfen und speichern.`
+        : 'Beleg erkannt. Bitte prüfen und speichern.');
+      setTimeout(() => { formTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+    } catch (err) {
+      setScanError(err.message || 'Beleg konnte nicht erkannt werden.');
+    } finally {
+      setScanning(false);
+    }
+  };
+
   // Filter and sort expenses
   const filteredExpenses = (expenses || []).filter(exp => {
     if (searchText && !exp.name?.toLowerCase().includes(searchText.toLowerCase()) && !exp.category?.toLowerCase().includes(searchText.toLowerCase())) return false;
@@ -211,16 +285,56 @@ export default function Expenses() {
 
   return (
     <div style={s.page} ref={formTopRef}>
-      {/* Quick Add Button */}
+      {/* Hidden file input for receipt scanning (camera or gallery) */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        style={{ display: 'none' }}
+        onChange={handleScanFile}
+      />
+
+      {/* Scanning overlay */}
+      <AnimatePresence>
+        {scanning && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={s.overlay}>
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} style={{ ...s.modal, maxWidth: 320, textAlign: 'center' }}>
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
+                style={{ display: 'inline-flex', marginBottom: 14 }}
+              >
+                <Sparkles size={40} color="#8b5cf6" />
+              </motion.div>
+              <h3 style={{ margin: '0 0 8px', color: '#1e293b', fontSize: 17 }}>Beleg wird analysiert…</h3>
+              <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>Die KI liest den Kassenzettel aus. Einen Moment bitte.</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Quick Add Buttons */}
       {!showAddForm && canCreate && (
-        <motion.button
-          style={s.fab}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => { resetForm(); setShowAddForm(true); }}
-        >
-          <Plus size={24} />
-        </motion.button>
+        <>
+          <motion.button
+            style={{ ...s.fab, bottom: 168, background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', boxShadow: '0 4px 20px rgba(139,92,246,0.4)' }}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={handleScanClick}
+            title="Beleg mit KI scannen"
+          >
+            <Camera size={24} />
+          </motion.button>
+          <motion.button
+            style={s.fab}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => { resetForm(); setShowAddForm(true); }}
+          >
+            <Plus size={24} />
+          </motion.button>
+        </>
       )}
 
       {/* Quick Add Form */}
@@ -236,6 +350,43 @@ export default function Expenses() {
               <h3 style={{ margin: 0, fontSize: 16, color: '#0c4a6e' }}>Neue Ausgabe</h3>
               <button onClick={() => setShowAddForm(false)} style={{ ...s.btnGhost, padding: 4 }}><X size={20} /></button>
             </div>
+
+            {/* KI Beleg-Scan */}
+            <button
+              type="button"
+              onClick={handleScanClick}
+              disabled={scanning}
+              style={{
+                ...s.btn, width: '100%', marginBottom: 12, opacity: scanning ? 0.7 : 1,
+                background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', color: '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}
+            >
+              <Sparkles size={16} /> {scanning ? 'Analysiere…' : 'Beleg mit KI scannen'}
+            </button>
+
+            <AnimatePresence>
+              {scanInfo && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', color: '#6d28d9', padding: '8px 12px', borderRadius: 10, fontSize: 13, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Sparkles size={14} /> {scanInfo}
+                  </div>
+                </motion.div>
+              )}
+              {scanError && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', padding: '8px 12px', borderRadius: 10, fontSize: 13, marginBottom: 12 }}>
+                    {scanError}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {getFields().map((field) => (
               <div key={field.key} style={{ marginBottom: 12 }}>
@@ -532,6 +683,15 @@ export default function Expenses() {
                       );
                     })()}
                   </div>
+                ) : field.key === 'note' ? (
+                  <textarea
+                    ref={el => inputRefs.current[field.key] = el}
+                    placeholder={field.label}
+                    rows={Math.min(8, Math.max(2, (formData.note || '').split('\n').length))}
+                    value={formData.note || ''}
+                    onChange={e => setFormData(p => ({ ...p, note: e.target.value }))}
+                    style={{ ...s.input, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }}
+                  />
                 ) : field.type === 'number' ? (
                   <input
                     ref={el => inputRefs.current[field.key] = el}
@@ -822,6 +982,14 @@ export default function Expenses() {
                         }
                       }}
                       style={s.input}
+                    />
+                  ) : field.key === 'note' ? (
+                    <textarea
+                      placeholder={field.label}
+                      rows={Math.min(8, Math.max(2, (editData.note || '').split('\n').length))}
+                      value={editData.note || ''}
+                      onChange={e => setEditData(p => ({ ...p, note: e.target.value }))}
+                      style={{ ...s.input, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5 }}
                     />
                   ) : field.type === 'category' ? (
                     <div style={{ position: 'relative' }}>

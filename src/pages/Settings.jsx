@@ -5,7 +5,7 @@ import { updateUser } from '../utils/db';
 import { useVacation } from '../contexts/VacationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { exportAsImage, exportAsExcel } from '../utils/exportUtils';
-import { Settings as SettingsIcon, DollarSign, Eye, EyeOff, Users, Download, Key, LogOut, ChevronDown, ChevronUp, Plus, Trash2, Save, X, Image, FileSpreadsheet, UserCog, User, Info, Edit3 } from 'lucide-react';
+import { Settings as SettingsIcon, DollarSign, Eye, EyeOff, Users, Download, Key, LogOut, ChevronDown, ChevronUp, Plus, Trash2, Save, X, Image, FileSpreadsheet, UserCog, User, Info, Edit3, Sparkles } from 'lucide-react';
 
 const styles = {
   container: {
@@ -386,6 +386,28 @@ export default function Settings({ onAdminPanel, onLogout }) {
 
   const [toast, setToast] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // --- OpenAI API-Key (pro User, geräteübergreifend in Firestore) ---
+  const [apiKey, setApiKey] = useState(currentUser?.openaiApiKey || '');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [savingApiKey, setSavingApiKey] = useState(false);
+
+  useEffect(() => {
+    setApiKey(currentUser?.openaiApiKey || '');
+  }, [currentUser?.openaiApiKey]);
+
+  const handleSaveApiKey = async () => {
+    if (!currentUser) return;
+    setSavingApiKey(true);
+    try {
+      await updateUser(currentUser.id, { openaiApiKey: apiKey.trim() });
+      await refreshUser();
+      showToast(apiKey.trim() ? 'API-Key gespeichert' : 'API-Key entfernt');
+    } catch (e) {
+      showToast('Fehler beim Speichern');
+    }
+    setSavingApiKey(false);
+  };
 
   useEffect(() => {
     if (currentVacation) {
@@ -872,6 +894,57 @@ export default function Settings({ onAdminPanel, onLogout }) {
             <button style={styles.exportBtn('#10b981')} onClick={handleExportExcel}>
               <FileSpreadsheet size={17} /> Excel
             </button>
+          </div>
+        </Section>
+      </motion.div>
+
+      {/* KI Beleg-Scanner / OpenAI API-Key */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.22, duration: 0.35 }}
+      >
+        <Section icon={<Sparkles size={18} color="#8b5cf6" />} title="KI Beleg-Scanner">
+          <p style={{ fontSize: '0.85rem', color: '#64748b', lineHeight: 1.5, marginTop: 0, marginBottom: '0.85rem' }}>
+            Hinterlege deinen persönlichen OpenAI API-Key, um Ausgaben automatisch aus
+            einem Foto vom Kassenzettel zu erkennen. Der Key gilt nur für dich und wird
+            geräteübergreifend gespeichert.
+          </p>
+
+          <div style={styles.inputGroup}>
+            <label style={styles.inputLabel}>OpenAI API-Key</label>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input
+                style={{ ...styles.input, flex: 1, fontFamily: 'monospace' }}
+                type={showApiKey ? 'text' : 'password'}
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="sk-..."
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <button
+                style={styles.smallBtn('#64748b')}
+                onClick={() => setShowApiKey((v) => !v)}
+                title={showApiKey ? 'Verbergen' : 'Anzeigen'}
+                type="button"
+              >
+                {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            style={{ ...styles.primaryBtn, opacity: savingApiKey ? 0.7 : 1 }}
+            onClick={handleSaveApiKey}
+            disabled={savingApiKey}
+          >
+            <Save size={17} /> {savingApiKey ? 'Speichern…' : 'API-Key speichern'}
+          </button>
+
+          <div style={{ ...styles.warning, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>
+            Tipp: Einen API-Key erstellst du unter platform.openai.com → API Keys.
+            Es können Kosten bei OpenAI anfallen (Modell: GPT‑4o Vision).
           </div>
         </Section>
       </motion.div>
