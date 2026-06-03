@@ -156,7 +156,7 @@ export default function Expenses() {
     setScanError('');
     setScanInfo('');
     if (!apiKey) {
-      setScanError('Bitte zuerst deinen OpenAI API-Key in den Einstellungen (KI Beleg-Scanner) hinterlegen.');
+      setScanError('Bitte zuerst deinen API-Key in den Einstellungen (KI Beleg-Scanner) hinterlegen.');
       setShowAddForm(true);
       return;
     }

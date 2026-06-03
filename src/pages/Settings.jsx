@@ -909,20 +909,27 @@ export default function Settings({ onAdminPanel, onLogout }) {
       >
         <Section icon={<Sparkles size={18} color="#8b5cf6" />} title="KI Beleg-Scanner">
           <p style={{ fontSize: '0.85rem', color: '#64748b', lineHeight: 1.5, marginTop: 0, marginBottom: '0.85rem' }}>
-            Hinterlege deinen persönlichen OpenAI API-Key, um Ausgaben automatisch aus
-            einem Foto vom Kassenzettel zu erkennen. Der Key gilt nur für dich und wird
-            geräteübergreifend gespeichert.
+            Hinterlege deinen persönlichen API-Key, um Ausgaben automatisch aus einem Foto
+            vom Kassenzettel zu erkennen. Der Key gilt nur für dich und wird geräteübergreifend
+            gespeichert.
           </p>
+          <div style={{ ...styles.warning, background: '#f5f3ff', border: '1px solid #ddd6fe', color: '#6d28d9', marginTop: 0, marginBottom: '0.85rem' }}>
+            <strong>Wichtig:</strong> Verwende einen <strong>OpenRouter</strong>-Key (beginnt mit
+            „sk-or-"). Er funktioniert direkt aus der App – ohne Server. Ein OpenRouter-Key
+            erstellst du kostenlos unter openrouter.ai → Keys und lädst dort Guthaben auf.
+            Du nutzt damit weiterhin GPT‑4o von OpenAI. (Reine OpenAI-Keys werden vom Browser
+            blockiert und funktionieren hier nicht.)
+          </div>
 
           <div style={styles.inputGroup}>
-            <label style={styles.inputLabel}>OpenAI API-Key</label>
+            <label style={styles.inputLabel}>API-Key (OpenRouter)</label>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <input
                 style={{ ...styles.input, flex: 1, fontFamily: 'monospace' }}
                 type={showApiKey ? 'text' : 'password'}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-..."
+                placeholder="sk-or-..."
                 autoComplete="off"
                 spellCheck={false}
               />
@@ -959,8 +966,8 @@ export default function Settings({ onAdminPanel, onLogout }) {
           </button>
 
           <div style={{ ...styles.warning, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>
-            Tipp: Einen API-Key erstellst du unter platform.openai.com → API Keys.
-            Es können Kosten bei OpenAI anfallen (Modell: GPT‑4o Vision).
+            Tipp: Key erstellen unter openrouter.ai → Keys, etwas Guthaben aufladen, Key hier
+            einfügen. Pro gescanntem Beleg fallen nur wenige Cent an (Modell: GPT‑4o Vision).
           </div>
         </Section>
       </motion.div>

@@ -94,29 +94,65 @@ export async function scanReceiptImage({ dataUrl, apiKey, categories = [], model
     'Wenn ein Wert nicht erkennbar ist, lass das Feld leer (string "" bzw. lasse items leer).',
   ].join('\n');
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: 'Analysiere diesen Beleg und gib das JSON zurück.' },
-            { type: 'image_url', image_url: { url: dataUrl, detail: 'high' } },
-          ],
-        },
-      ],
-      response_format: { type: 'json_object' },
-      max_tokens: 1500,
-      temperature: 0,
-    }),
-  });
+  // Provider anhand des Keys erkennen:
+  // OpenRouter-Keys beginnen mit "sk-or-" und funktionieren direkt aus dem Browser
+  // (CORS erlaubt). Direkte OpenAI-Keys ("sk-...") werden von OpenAI im Browser per
+  // CORS blockiert – deshalb ist OpenRouter der empfohlene Weg.
+  const isOpenRouter = /^sk-or-/i.test(apiKey.trim());
+  const endpoint = isOpenRouter
+    ? 'https://openrouter.ai/api/v1/chat/completions'
+    : 'https://api.openai.com/v1/chat/completions';
+  // OpenRouter erwartet Modelle im Format "openai/gpt-4o".
+  const apiModel = isOpenRouter && !model.includes('/') ? `openai/${model}` : model;
+  const providerName = isOpenRouter ? 'OpenRouter' : 'OpenAI';
+
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${apiKey.trim()}`,
+  };
+  if (isOpenRouter) {
+    // Von OpenRouter empfohlene (optionale) Header für Browser-Apps.
+    headers['HTTP-Referer'] = (typeof location !== 'undefined' && location.origin) || 'https://kmitulla.github.io';
+    headers['X-Title'] = 'Urlaubsausgaben';
+  }
+
+  // Timeout, damit der Spinner nicht ewig hängt.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90000);
+
+  let res;
+  try {
+    res = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: apiModel,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Analysiere diesen Beleg und gib das JSON zurück.' },
+              { type: 'image_url', image_url: { url: dataUrl, detail: 'high' } },
+            ],
+          },
+        ],
+        response_format: { type: 'json_object' },
+        max_tokens: 1500,
+        temperature: 0,
+      }),
+    });
+  } catch (e) {
+    // "Load failed" / "Failed to fetch" = Netzwerk- oder CORS-Fehler im Browser
+    if (e.name === 'AbortError') throw new Error('Zeitüberschreitung – der Beleg konnte nicht rechtzeitig analysiert werden. Bitte erneut versuchen.');
+    if (!isOpenRouter) {
+      throw new Error('Verbindung fehlgeschlagen. OpenAI erlaubt keine direkten Aufrufe aus dem Browser – bitte einen OpenRouter-Key (beginnt mit "sk-or-") in den Einstellungen verwenden.');
+    }
+    throw new Error('Verbindung fehlgeschlagen. Bitte Internetverbindung prüfen und erneut versuchen.');
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!res.ok) {
     let detail = '';
@@ -125,8 +161,9 @@ export async function scanReceiptImage({ dataUrl, apiKey, categories = [], model
       detail = err?.error?.message || '';
     } catch { /* ignore */ }
     if (res.status === 401) throw new Error('API-Key ungültig. Bitte in den Einstellungen prüfen.');
-    if (res.status === 429) throw new Error('OpenAI-Limit erreicht oder kein Guthaben. Bitte später erneut versuchen.');
-    throw new Error(`OpenAI-Fehler (${res.status})${detail ? ': ' + detail : ''}`);
+    if (res.status === 402) throw new Error(`Kein Guthaben bei ${providerName}. Bitte Guthaben aufladen.`);
+    if (res.status === 429) throw new Error(`${providerName}-Limit erreicht oder kein Guthaben. Bitte später erneut versuchen.`);
+    throw new Error(`${providerName}-Fehler (${res.status})${detail ? ': ' + detail : ''}`);
   }
 
   const json = await res.json();
