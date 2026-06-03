@@ -4,8 +4,9 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearSca
 import { Pie, Doughnut, Bar } from 'react-chartjs-2';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { updateVacation, calculateDebts } from '../utils/db';
+import { exportVacationPDF } from '../utils/exportUtils';
 import { useVacation } from '../contexts/VacationContext';
-import { Plus, Trash2, Edit3, TrendingUp, DollarSign, Calendar, BarChart3, PieChart, X, Eye, EyeOff, Users, AlignLeft, Percent, Clock } from 'lucide-react';
+import { Plus, Trash2, Edit3, TrendingUp, DollarSign, Calendar, BarChart3, PieChart, X, Eye, EyeOff, Users, AlignLeft, Percent, Clock, FileText } from 'lucide-react';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, Filler);
 
@@ -900,6 +901,22 @@ export default function Overview() {
 
   return (
     <div id="export-content" style={s.page}>
+      {/* Export toolbar */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <motion.button
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.96 }}
+          onClick={() => exportVacationPDF(currentVacation, expenses)}
+          style={{
+            ...s.btn, display: 'flex', alignItems: 'center', gap: 8,
+            background: 'linear-gradient(135deg, #ef4444, #f97316)', color: '#fff',
+            boxShadow: '0 4px 14px -6px rgba(239,68,68,0.5)',
+          }}
+        >
+          <FileText size={16} /> PDF-Bericht
+        </motion.button>
+      </div>
+
       {/* KPIs Section */}
       <div style={s.section}>
         <div style={s.sectionHeader}>

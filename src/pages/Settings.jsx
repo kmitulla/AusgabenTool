@@ -4,9 +4,9 @@ import { updateVacation } from '../utils/db';
 import { updateUser } from '../utils/db';
 import { useVacation } from '../contexts/VacationContext';
 import { useAuth } from '../contexts/AuthContext';
-import { exportAsImage, exportAsExcel } from '../utils/exportUtils';
+import { exportVacationPDF, exportAsExcel } from '../utils/exportUtils';
 import { DEFAULT_AI_MODEL, AI_MODEL_OPTIONS } from '../utils/aiReceipt';
-import { Settings as SettingsIcon, DollarSign, Eye, EyeOff, Users, Download, Key, LogOut, ChevronDown, ChevronUp, Plus, Trash2, Save, X, Image, FileSpreadsheet, UserCog, User, Info, Edit3, Sparkles } from 'lucide-react';
+import { Settings as SettingsIcon, DollarSign, Eye, EyeOff, Users, Download, Key, LogOut, ChevronDown, ChevronUp, Plus, Trash2, Save, X, FileText, FileSpreadsheet, UserCog, User, Info, Edit3, Sparkles } from 'lucide-react';
 
 const styles = {
   container: {
@@ -575,13 +575,8 @@ export default function Settings({ onAdminPanel, onLogout }) {
   };
 
   // --- Export ---
-  const handleExportImage = () => {
-    const el = document.getElementById('export-content');
-    if (!el) {
-      alert('Bitte gehe zur Übersicht und nutze den Export dort');
-      return;
-    }
-    exportAsImage('export-content', `${currentVacation?.name || 'urlaub'}.png`);
+  const handleExportPDF = () => {
+    exportVacationPDF(currentVacation, expenses);
   };
   const handleExportExcel = () => {
     const data = (expenses || []).map(e => ({
@@ -891,13 +886,18 @@ export default function Settings({ onAdminPanel, onLogout }) {
       >
         <Section icon={<Download size={18} color="#8b5cf6" />} title="Export">
           <div style={styles.exportRow}>
-            <button style={styles.exportBtn('#3b82f6')} onClick={handleExportImage}>
-              <Image size={17} /> Bild (PNG)
+            <button style={styles.exportBtn('#ef4444')} onClick={handleExportPDF}>
+              <FileText size={17} /> PDF-Bericht
             </button>
             <button style={styles.exportBtn('#10b981')} onClick={handleExportExcel}>
               <FileSpreadsheet size={17} /> Excel
             </button>
           </div>
+          <p style={{ fontSize: '0.82rem', color: '#64748b', lineHeight: 1.5, marginTop: '0.75rem', marginBottom: 0 }}>
+            Der PDF-Bericht enthält sauber als A4-Dokument: Zusammenfassung, KPIs, Diagramme,
+            Kategorie-Auswertung{sharedMode ? ', Bilanz & Ausgleich' : ''} und die komplette Ausgabenliste –
+            kein Screenshot.
+          </p>
         </Section>
       </motion.div>
 
