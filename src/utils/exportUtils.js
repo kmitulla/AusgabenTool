@@ -236,13 +236,20 @@ export function exportVacationPDF(vacation, expenses) {
     .map(([name, v]) => ({ name, sum: v.sum, count: v.count, pct: total > 0 ? (v.sum / total) * 100 : 0 }))
     .sort((a, b) => b.sum - a.sum);
 
-  // Tageswerte (für Zeitverlauf-Diagramm)
+  // Tageswerte (für Zeitverlauf-Diagramm) – inkl. Kategorie-Aufteilung pro Tag
   const dayMap = {};
+  const dayCatMap = {};
   list.forEach(e => {
     if (!e.date) return;
-    dayMap[e.date] = (dayMap[e.date] || 0) + convert(e.amount, e.exchangeRate, displayCurrency, rates);
+    const amt = convert(e.amount, e.exchangeRate, displayCurrency, rates);
+    dayMap[e.date] = (dayMap[e.date] || 0) + amt;
+    const cat = e.category || 'Ohne Kategorie';
+    if (!dayCatMap[e.date]) dayCatMap[e.date] = {};
+    dayCatMap[e.date][cat] = (dayCatMap[e.date][cat] || 0) + amt;
   });
-  const dayRows = Object.entries(dayMap).map(([date, sum]) => ({ date, sum })).sort((a, b) => a.date.localeCompare(b.date));
+  const dayRows = Object.entries(dayMap)
+    .map(([date, sum]) => ({ date, sum, segs: dayCatMap[date] || {} }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   // Mehrwährungs-Erkennung
   const multiCurrency = list.some(e => (e.currency || 'EUR') !== displayCurrency);
@@ -365,37 +372,63 @@ export function exportVacationPDF(vacation, expenses) {
     y += 2;
   }
 
-  // Vertikales Balkendiagramm (Zeitverlauf)
-  function vBarChart(items, currency) {
-    if (!items.length) return;
-    const H = 42;
+  // Farb-Legende (Swatch + Text), bricht automatisch um
+  function legend(items) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    const sw = 3, lineH = 5, itemGap = 6;
+    let x = ML;
+    ensure(lineH);
+    items.forEach(it => {
+      const tw = doc.getTextWidth(it.label);
+      const w = sw + 1.5 + tw + itemGap;
+      if (x + w > ML + CW) { x = ML; y += lineH; ensure(lineH); }
+      doc.setFillColor(...hexToRgb(it.color));
+      doc.roundedRect(x, y, sw, sw, 0.6, 0.6, 'F');
+      doc.setTextColor(...DARK);
+      doc.text(it.label, x + sw + 1.5, y + sw - 0.4);
+      x += w;
+    });
+    y += lineH + 2;
+  }
+
+  // Gestapeltes Säulendiagramm (Zeitverlauf, Stapel = Kategorien)
+  function stackedTimeChart(days, catOrder, currency) {
+    if (!days.length) return;
+    legend(catOrder.map((c, i) => ({ label: c, color: CHART_COLORS[i % CHART_COLORS.length] })));
+    const H = 46;
     ensure(H + 14);
     const baseY = y + H;
-    const maxVal = Math.max(...items.map(it => it.sum), 0.0001);
-    // Achsenlinie
+    const maxVal = Math.max(...days.map(d => d.sum), 0.0001);
+    // Achsenlinie + Max-Label
     doc.setDrawColor(...BORDER);
     doc.setLineWidth(0.3);
     doc.line(ML, baseY, ML + CW, baseY);
-    // Max-Label
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...GRAY);
     doc.text(fmtMoney(maxVal, currency), ML + CW, y + 2, { align: 'right' });
 
-    const n = items.length;
+    const n = days.length;
     const slot = CW / n;
-    const barW = Math.min(slot * 0.6, 9);
+    const barW = Math.min(slot * 0.62, 10);
     const labelEvery = Math.ceil(n / 12);
-    items.forEach((it, i) => {
-      const h = (it.sum / maxVal) * (H - 4);
+    days.forEach((d, i) => {
       const x = ML + i * slot + (slot - barW) / 2;
-      doc.setFillColor(...PRIMARY);
-      doc.roundedRect(x, baseY - h, barW, h, 0.8, 0.8, 'F');
+      let top = baseY;
+      catOrder.forEach((cat, ci) => {
+        const v = d.segs[cat] || 0;
+        if (v <= 0) return;
+        const h = (v / maxVal) * (H - 4);
+        doc.setFillColor(...hexToRgb(CHART_COLORS[ci % CHART_COLORS.length]));
+        doc.rect(x, top - h, barW, h, 'F');
+        top -= h;
+      });
       if (i % labelEvery === 0) {
         doc.setFontSize(6.5);
         doc.setTextColor(...GRAY);
-        const d = it.date.split('-');
-        doc.text(`${d[2]}.${d[1]}`, x + barW / 2, baseY + 3.5, { align: 'center' });
+        const dd = d.date.split('-');
+        doc.text(`${dd[2]}.${dd[1]}`, x + barW / 2, baseY + 3.5, { align: 'center' });
       }
     });
     y = baseY + 7;
@@ -546,10 +579,10 @@ export function exportVacationPDF(vacation, expenses) {
     note('Keine Ausgaben erfasst.');
   }
 
-  // Zeitverlauf
+  // Zeitverlauf (gestapelt nach Kategorien)
   if (dayRows.length > 1) {
     sectionTitle('Ausgaben im Zeitverlauf');
-    vBarChart(dayRows, displayCurrency);
+    stackedTimeChart(dayRows, catRows.map(c => c.name), displayCurrency);
   }
 
   // Geteilte Bilanz
