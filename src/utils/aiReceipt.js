@@ -179,7 +179,18 @@ export async function scanReceiptImage({ dataUrl, apiKey, categories = [], model
 
   // Datum validieren / normalisieren
   let date = (parsed.date || '').toString().trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) date = today;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    date = today;
+  } else {
+    // Plausibilitätsprüfung: Fehllesungen der KI (z.B. falsches Jahr) würden
+    // sonst den Zeitraum des Urlaubs aufspannen und alle Tagesdurchschnitte
+    // verfälschen. Belege liegen realistisch höchstens ein Jahr zurück und
+    // nie in der Zukunft — alles außerhalb fällt auf das heutige Datum zurück.
+    const d = new Date(date + 'T00:00:00');
+    const now = new Date(today + 'T00:00:00');
+    const ageDays = (now - d) / 86400000;
+    if (isNaN(ageDays) || ageDays < -1 || ageDays > 365) date = today;
+  }
 
   // Kategorie nur übernehmen, wenn sie wirklich existiert (case-insensitive)
   let category = (parsed.category || '').toString().trim();
