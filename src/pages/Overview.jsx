@@ -4,7 +4,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearSca
 import { Pie, Doughnut, Bar } from 'react-chartjs-2';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { updateVacation, calculateDebts } from '../utils/db';
-import { exportVacationPDF } from '../utils/exportUtils';
+import PdfExportModal from '../components/PdfExportModal';
 import { useVacation } from '../contexts/VacationContext';
 import { Plus, Trash2, Edit3, TrendingUp, DollarSign, Calendar, BarChart3, PieChart, X, Eye, EyeOff, Users, AlignLeft, Percent, Clock, FileText } from 'lucide-react';
 
@@ -148,6 +148,7 @@ export default function Overview() {
   const { currentVacation, expenses, refreshVacation } = useVacation();
   const [showKpiModal, setShowKpiModal] = useState(false);
   const [showChartModal, setShowChartModal] = useState(false);
+  const [showPdfModal, setShowPdfModal] = useState(false);
   // Drill-down modal opened by tapping a chart segment — shows the full
   // (scrollable) list of expenses behind that slice / bar.
   const [drillDown, setDrillDown] = useState(null);
@@ -906,7 +907,7 @@ export default function Overview() {
         <motion.button
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.96 }}
-          onClick={() => exportVacationPDF(currentVacation, expenses)}
+          onClick={() => setShowPdfModal(true)}
           style={{
             ...s.btn, display: 'flex', alignItems: 'center', gap: 8,
             background: 'linear-gradient(135deg, #ef4444, #f97316)', color: '#fff',
@@ -916,6 +917,13 @@ export default function Overview() {
           <FileText size={16} /> PDF-Bericht
         </motion.button>
       </div>
+
+      <PdfExportModal
+        open={showPdfModal}
+        onClose={() => setShowPdfModal(false)}
+        vacation={currentVacation}
+        expenses={expenses}
+      />
 
       {/* KPIs Section */}
       <div style={s.section}>

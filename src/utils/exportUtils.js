@@ -105,13 +105,16 @@ export async function exportSharedVacationPDF(elementId, filename) {
 // ============================================================================
 // PROFESSIONELLER PDF-REPORT (vektorbasiert, kein Screenshot)
 // ----------------------------------------------------------------------------
-// Erzeugt ein sauberes A4-PDF mit Deckkopf, KPIs, Diagrammen (vektoriell
-// gezeichnet), Kategorie-Tabelle und vollständiger Ausgabenliste mit
-// automatischen Seitenumbrüchen, Kopf-/Fußzeilen und Beschriftungen.
+// Erzeugt ein sauberes A4-PDF mit Deckkopf, KPIs, konfigurierbaren Diagrammen
+// (vektoriell gezeichnet), Kategorie-Tabelle und vollständiger Ausgabenliste
+// mit automatischen Seitenumbrüchen, Kopf-/Fußzeilen und Beschriftungen.
+// Welche Diagramme/Abschnitte enthalten sind und welche Kategorien in den
+// Diagrammen ausgeblendet werden, steuert eine Export-Konfiguration.
 // ============================================================================
 
 const CUR_SYMBOLS = { EUR: '€', USD: '$', GBP: '£', CHF: 'CHF', JPY: '¥', TRY: '₺', THB: '฿', SEK: 'kr', NOK: 'kr', DKK: 'kr', PLN: 'zł', CZK: 'Kč', HUF: 'Ft', HRK: 'kn', BGN: 'лв', RON: 'lei' };
 const CHART_COLORS = ['#3b82f6', '#f97316', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#f59e0b', '#06b6d4', '#f43f5e', '#84cc16', '#a855f7', '#14b8a6'];
+const REST_COLOR = '#94a3b8';
 
 function hexToRgb(hex) {
   const h = hex.replace('#', '');
@@ -123,6 +126,9 @@ function fmtNumber(value) {
 function fmtMoney(value, currency) {
   const sym = CUR_SYMBOLS[currency] || currency || '';
   return `${fmtNumber(value)} ${sym}`.trim();
+}
+function fmtCompact(value) {
+  return new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(value || 0);
 }
 function fmtDate(d) {
   if (!d) return '';
@@ -140,6 +146,57 @@ function convert(amount, fromRate, toCurrency, rates) {
   const base = amt / r;
   const tr = rates[toCurrency] || 1;
   return base * tr;
+}
+
+// "Schöner" Achsenschritt für Gitterlinien (1/2/2,5/5 × 10^n)
+function niceStep(maxVal, targetLines = 4) {
+  const raw = Math.max(maxVal, 0.0001) / targetLines;
+  const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+  for (const c of [1, 2, 2.5, 5, 10]) {
+    if (raw / pow <= c) return c * pow;
+  }
+  return 10 * pow;
+}
+
+// Kreisbogen als Bezier-Segmente (max. 90° pro Segment) — für Donut-Slices.
+function arcBeziers(cx, cy, r, a0, a1) {
+  const segs = [];
+  const total = a1 - a0;
+  const n = Math.max(1, Math.ceil(Math.abs(total) / (Math.PI / 2)));
+  const da = total / n;
+  let a = a0;
+  for (let i = 0; i < n; i++) {
+    const b = a + da;
+    const k = (4 / 3) * Math.tan((b - a) / 4) * r;
+    const p0 = [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+    const p3 = [cx + r * Math.cos(b), cy + r * Math.sin(b)];
+    segs.push({
+      c1: [p0[0] - k * Math.sin(a), p0[1] + k * Math.cos(a)],
+      c2: [p3[0] + k * Math.sin(b), p3[1] - k * Math.cos(b)],
+      p: p3,
+    });
+    a = b;
+  }
+  return segs;
+}
+
+// Donut-Segment (Ring-Ausschnitt) als geschlossener Pfad füllen + weiß umranden.
+function drawDonutSlice(doc, cx, cy, rInner, rOuter, a0, a1) {
+  const start = [cx + rOuter * Math.cos(a0), cy + rOuter * Math.sin(a0)];
+  let curr = start;
+  const ops = [];
+  arcBeziers(cx, cy, rOuter, a0, a1).forEach(s => {
+    ops.push([s.c1[0] - curr[0], s.c1[1] - curr[1], s.c2[0] - curr[0], s.c2[1] - curr[1], s.p[0] - curr[0], s.p[1] - curr[1]]);
+    curr = s.p;
+  });
+  const innerStart = [cx + rInner * Math.cos(a1), cy + rInner * Math.sin(a1)];
+  ops.push([innerStart[0] - curr[0], innerStart[1] - curr[1]]);
+  curr = innerStart;
+  arcBeziers(cx, cy, rInner, a1, a0).forEach(s => {
+    ops.push([s.c1[0] - curr[0], s.c1[1] - curr[1], s.c2[0] - curr[0], s.c2[1] - curr[1], s.p[0] - curr[0], s.p[1] - curr[1]]);
+    curr = s.p;
+  });
+  doc.lines(ops, start[0], start[1], [1, 1], 'FD', true);
 }
 
 // Spiegelt die Kategorie-/Personen-/Merge-Filterlogik der Übersicht.
@@ -203,7 +260,46 @@ const KPI_TYPE_LABELS = {
   person_balance: 'Personen-Bilanz',
 };
 
-export function exportVacationPDF(vacation, expenses) {
+// ---------------------------------------------------------------------------
+// Export-Konfiguration: welche Diagramme/Abschnitte, welche Kategorien
+// pro Diagramm ausgeblendet werden. Wird pro Urlaub gespeichert.
+// ---------------------------------------------------------------------------
+export const DEFAULT_PDF_CONFIG = {
+  charts: {
+    catDonut: { enabled: true, excluded: [] },
+    catBar: { enabled: true, excluded: [] },
+    time: { enabled: true, excluded: [] },
+    balance: { enabled: true },
+  },
+  sections: {
+    summary: true,
+    kpis: true,
+    categoryTable: true,
+    balanceTable: true,
+    expenses: true,
+  },
+};
+
+export function normalizePdfConfig(raw) {
+  const d = DEFAULT_PDF_CONFIG;
+  const c = raw || {};
+  const chart = (key) => ({
+    enabled: typeof c.charts?.[key]?.enabled === 'boolean' ? c.charts[key].enabled : d.charts[key].enabled,
+    excluded: Array.isArray(c.charts?.[key]?.excluded) ? c.charts[key].excluded.filter(Boolean) : [],
+  });
+  return {
+    charts: {
+      catDonut: chart('catDonut'),
+      catBar: chart('catBar'),
+      time: chart('time'),
+      balance: { enabled: typeof c.charts?.balance?.enabled === 'boolean' ? c.charts.balance.enabled : true },
+    },
+    sections: { ...d.sections, ...(c.sections || {}) },
+  };
+}
+
+export function exportVacationPDF(vacation, expenses, exportConfig) {
+  const cfg = normalizePdfConfig(exportConfig !== undefined ? exportConfig : vacation?.pdfExport);
   const settings = vacation?.settings || {};
   const rates = settings.exchangeRates || { EUR: 1 };
   const displayCurrency = settings.currency || 'EUR';
@@ -224,32 +320,49 @@ export function exportVacationPDF(vacation, expenses) {
   }
   const dailyAvg = total / days;
 
-  // Kategorie-Aufschlüsselung
-  const catMap = {};
-  list.forEach(e => {
-    const key = e.category || 'Ohne Kategorie';
-    if (!catMap[key]) catMap[key] = { sum: 0, count: 0 };
-    catMap[key].sum += convert(e.amount, e.exchangeRate, displayCurrency, rates);
-    catMap[key].count += 1;
-  });
-  const catRows = Object.entries(catMap)
-    .map(([name, v]) => ({ name, sum: v.sum, count: v.count, pct: total > 0 ? (v.sum / total) * 100 : 0 }))
-    .sort((a, b) => b.sum - a.sum);
+  // Kategorie-Aufschlüsselung (optional ohne ausgeblendete Kategorien)
+  const catRowsFor = (excluded) => {
+    const ex = new Set(excluded || []);
+    const m = {};
+    list.forEach(e => {
+      const key = e.category || 'Ohne Kategorie';
+      if (ex.has(key)) return;
+      if (!m[key]) m[key] = { sum: 0, count: 0 };
+      m[key].sum += convert(e.amount, e.exchangeRate, displayCurrency, rates);
+      m[key].count += 1;
+    });
+    const t = Object.values(m).reduce((s, v) => s + v.sum, 0);
+    return Object.entries(m)
+      .map(([name, v]) => ({ name, sum: v.sum, count: v.count, pct: t > 0 ? (v.sum / t) * 100 : 0 }))
+      .sort((a, b) => b.sum - a.sum);
+  };
+  const catRows = catRowsFor([]);
+
+  // Globale Farbzuordnung: jede Kategorie hat in allen Diagrammen dieselbe Farbe.
+  const colorOf = {};
+  catRows.forEach((c, i) => { colorOf[c.name] = CHART_COLORS[i % CHART_COLORS.length]; });
+
+  // Nur Kategorien melden, die es tatsächlich gibt (alte Konfig-Einträge ignorieren)
+  const existingCats = new Set(catRows.map(c => c.name));
+  const activeExcluded = (excluded) => (excluded || []).filter(c => existingCats.has(c));
 
   // Tageswerte (für Zeitverlauf-Diagramm) – inkl. Kategorie-Aufteilung pro Tag
-  const dayMap = {};
-  const dayCatMap = {};
-  list.forEach(e => {
-    if (!e.date) return;
-    const amt = convert(e.amount, e.exchangeRate, displayCurrency, rates);
-    dayMap[e.date] = (dayMap[e.date] || 0) + amt;
-    const cat = e.category || 'Ohne Kategorie';
-    if (!dayCatMap[e.date]) dayCatMap[e.date] = {};
-    dayCatMap[e.date][cat] = (dayCatMap[e.date][cat] || 0) + amt;
-  });
-  const dayRows = Object.entries(dayMap)
-    .map(([date, sum]) => ({ date, sum, segs: dayCatMap[date] || {} }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const dayRowsFor = (excluded) => {
+    const ex = new Set(excluded || []);
+    const m = {};
+    list.forEach(e => {
+      if (!e.date) return;
+      const cat = e.category || 'Ohne Kategorie';
+      if (ex.has(cat)) return;
+      const amt = convert(e.amount, e.exchangeRate, displayCurrency, rates);
+      if (!m[e.date]) m[e.date] = { sum: 0, segs: {} };
+      m[e.date].sum += amt;
+      m[e.date].segs[cat] = (m[e.date].segs[cat] || 0) + amt;
+    });
+    return Object.entries(m)
+      .map(([date, v]) => ({ date, sum: v.sum, segs: v.segs }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  };
 
   // Mehrwährungs-Erkennung
   const multiCurrency = list.some(e => (e.currency || 'EUR') !== displayCurrency);
@@ -270,7 +383,7 @@ export function exportVacationPDF(vacation, expenses) {
   const doc = new jsPDF('p', 'mm', 'a4');
   const PW = 210, PH = 297, ML = 14, MR = 14, MT = 16, MB = 16, CW = PW - ML - MR;
   const PRIMARY = [14, 165, 233], HEADERC = [12, 74, 110], DARK = [15, 23, 42], GRAY = [100, 116, 139], BORDER = [226, 232, 240], ZEBRA = [247, 250, 252];
-  const CPX = 2.4, CPY = 0; // cell padding x; y handled per row
+  const CPX = 2.4;
   let y = MT;
 
   const fontH = (pt) => pt * 0.3528; // pt -> mm
@@ -302,8 +415,10 @@ export function exportVacationPDF(vacation, expenses) {
     y += 7;
   }
 
-  function sectionTitle(text) {
-    ensure(14);
+  // keepWith: Mindestplatz, der nach dem Titel noch auf die Seite passen muss,
+  // damit eine Überschrift nie allein am Seitenende steht.
+  function sectionTitle(text, keepWith = 16) {
+    ensure(9 + Math.min(keepWith, PH - MT - MB - 12));
     doc.setFillColor(...PRIMARY);
     doc.roundedRect(ML, y - 0.5, 3, 5.5, 1, 1, 'F');
     doc.setFont('helvetica', 'bold');
@@ -311,6 +426,32 @@ export function exportVacationPDF(vacation, expenses) {
     doc.setTextColor(...HEADERC);
     doc.text(text, ML + 6, y + 4);
     y += 9;
+  }
+
+  // keepWith: Höhe des folgenden Blocks, damit das Label nie allein
+  // am Seitenende steht.
+  function subLabel(text, keepWith = 10) {
+    ensure(7 + Math.min(keepWith, PH - MT - MB - 10));
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...GRAY);
+    doc.text(text, ML, y + 3);
+    y += 7;
+  }
+
+  // Fußnote unter einem Diagramm, wenn Kategorien ausgeblendet wurden.
+  function chartNote(excluded) {
+    const ex = activeExcluded(excluded);
+    if (!ex.length) return;
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...GRAY);
+    const txt = `Im Diagramm ausgeblendet: ${ex.join(', ')} — in Summen und Tabellen weiterhin enthalten.`;
+    const lines = doc.splitTextToSize(txt, CW);
+    ensure(lines.length * 3.2 + 3);
+    doc.text(lines, ML, y + 1.5);
+    y += lines.length * 3.2 + 4;
+    doc.setFont('helvetica', 'normal');
   }
 
   // KPI-Karten (3 pro Reihe)
@@ -342,12 +483,98 @@ export function exportVacationPDF(vacation, expenses) {
     }
   }
 
+  // Donut-Diagramm mit Legende rechts (Wert + Anteil), Summe in der Mitte.
+  function donutChart(items, currency) {
+    if (!items.length) return;
+    let data = items;
+    if (data.length > 11) {
+      const rest = data.slice(10);
+      data = [
+        ...data.slice(0, 10),
+        { name: `Weitere (${rest.length})`, sum: rest.reduce((s, c) => s + c.sum, 0), color: REST_COLOR },
+      ];
+    }
+    const sumAll = data.reduce((s, c) => s + c.sum, 0);
+    if (sumAll <= 0) return;
+
+    const R = 26, hole = 15;
+    const rowH = 6.6;
+    const blockH = Math.max(R * 2 + 2, data.length * rowH);
+    ensure(blockH + 6);
+    const cx = ML + R + 2;
+    const cy = y + blockH / 2;
+
+    // Segmente
+    let a = -Math.PI / 2;
+    doc.setDrawColor(255, 255, 255);
+    doc.setLineWidth(0.5);
+    const labelPos = [];
+    data.forEach(it => {
+      const frac = it.sum / sumAll;
+      if (frac <= 0) return;
+      const a1 = a + frac * Math.PI * 2;
+      doc.setFillColor(...hexToRgb(it.color || colorOf[it.name] || REST_COLOR));
+      drawDonutSlice(doc, cx, cy, hole, R, a, a1);
+      if (frac >= 0.05) {
+        const mid = (a + a1) / 2;
+        const rm = (hole + R) / 2;
+        labelPos.push({ x: cx + rm * Math.cos(mid), y: cy + rm * Math.sin(mid), txt: `${Math.round(frac * 100)} %` });
+      }
+      a = a1;
+    });
+    doc.setLineWidth(0.2);
+    // Prozent-Labels auf den Segmenten
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(255, 255, 255);
+    labelPos.forEach(l => doc.text(l.txt, l.x, l.y + 1.1, { align: 'center' }));
+
+    // Summe in der Mitte (Schrift verkleinern, bis sie ins Loch passt)
+    const centerTxt = fmtMoney(sumAll, currency);
+    let fs = 10.5;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(fs);
+    while (doc.getTextWidth(centerTxt) > hole * 2 - 5 && fs > 6) {
+      fs -= 0.5;
+      doc.setFontSize(fs);
+    }
+    doc.setTextColor(...DARK);
+    doc.text(centerTxt, cx, cy + 0.4, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.8);
+    doc.setTextColor(...GRAY);
+    doc.text('Summe', cx, cy + 4.6, { align: 'center' });
+
+    // Legende rechts
+    const lx = ML + R * 2 + 10;
+    const lw = CW - (R * 2 + 10);
+    let ly = y + Math.max(0, (blockH - data.length * rowH) / 2);
+    data.forEach(it => {
+      const pct = (it.sum / sumAll) * 100;
+      doc.setFillColor(...hexToRgb(it.color || colorOf[it.name] || REST_COLOR));
+      doc.roundedRect(lx, ly + 1.3, 3.2, 3.2, 0.7, 0.7, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...DARK);
+      const name = doc.splitTextToSize(it.name, lw - 48)[0];
+      doc.text(name, lx + 5.5, ly + 4);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...GRAY);
+      doc.text(`${fmtMoney(it.sum, currency)} · ${pct.toFixed(1).replace('.', ',')} %`, lx + lw, ly + 4, { align: 'right' });
+      ly += rowH;
+    });
+
+    y += blockH + 6;
+  }
+
   // Horizontales Balkendiagramm
   function hBarChart(items, currency) {
     if (!items.length) return;
     const labelW = 40, valueW = 34, barArea = CW - labelW - valueW - 4;
     const maxVal = Math.max(...items.map(it => it.value), 0.0001);
     const barH = 6, rowGap = 4.2;
+    // Block möglichst zusammenhalten
+    ensure(Math.min(items.length * (barH + rowGap) + 2, PH - MT - MB - 10));
     items.forEach((it, i) => {
       ensure(barH + rowGap);
       const color = hexToRgb(it.color || CHART_COLORS[i % CHART_COLORS.length]);
@@ -372,17 +599,31 @@ export function exportVacationPDF(vacation, expenses) {
     y += 2;
   }
 
+  // Höhe der Legende vorab berechnen, damit Legende + Diagramm als Block
+  // zusammen auf eine Seite passen (kein Umbruch mittendrin).
+  function measureLegendH(items) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    const sw = 3, lineH = 5, itemGap = 6;
+    let x = ML, h = lineH;
+    items.forEach(it => {
+      const w = sw + 1.5 + doc.getTextWidth(it.label) + itemGap;
+      if (x + w > ML + CW) { x = ML; h += lineH; }
+      x += w;
+    });
+    return h + 2;
+  }
+
   // Farb-Legende (Swatch + Text), bricht automatisch um
   function legend(items) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     const sw = 3, lineH = 5, itemGap = 6;
     let x = ML;
-    ensure(lineH);
     items.forEach(it => {
       const tw = doc.getTextWidth(it.label);
       const w = sw + 1.5 + tw + itemGap;
-      if (x + w > ML + CW) { x = ML; y += lineH; ensure(lineH); }
+      if (x + w > ML + CW) { x = ML; y += lineH; }
       doc.setFillColor(...hexToRgb(it.color));
       doc.roundedRect(x, y, sw, sw, 0.6, 0.6, 'F');
       doc.setTextColor(...DARK);
@@ -393,34 +634,49 @@ export function exportVacationPDF(vacation, expenses) {
   }
 
   // Gestapeltes Säulendiagramm (Zeitverlauf, Stapel = Kategorien)
-  function stackedTimeChart(days, catOrder, currency) {
-    if (!days.length) return;
-    legend(catOrder.map((c, i) => ({ label: c, color: CHART_COLORS[i % CHART_COLORS.length] })));
-    const H = 46;
-    ensure(H + 14);
-    const baseY = y + H;
-    const maxVal = Math.max(...days.map(d => d.sum), 0.0001);
-    // Achsenlinie + Max-Label
-    doc.setDrawColor(...BORDER);
-    doc.setLineWidth(0.3);
-    doc.line(ML, baseY, ML + CW, baseY);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor(...GRAY);
-    doc.text(fmtMoney(maxVal, currency), ML + CW, y + 2, { align: 'right' });
+  // mit Gitterlinien und Werte-Achse links.
+  function stackedTimeChart(daysArr, catOrder, currency) {
+    if (!daysArr.length) return;
+    const present = catOrder.filter(c => daysArr.some(d => (d.segs[c] || 0) > 0));
+    const legendItems = present.map(c => ({ label: c, color: colorOf[c] || REST_COLOR }));
+    const H = 52, axisW = 14;
+    const legH = measureLegendH(legendItems);
+    ensure(legH + H + 12);
+    legend(legendItems);
 
-    const n = days.length;
-    const slot = CW / n;
-    const barW = Math.min(slot * 0.62, 10);
-    const labelEvery = Math.ceil(n / 12);
-    days.forEach((d, i) => {
-      const x = ML + i * slot + (slot - barW) / 2;
+    const plotX = ML + axisW, plotW = CW - axisW;
+    const baseY = y + H;
+    const maxVal = Math.max(...daysArr.map(d => d.sum), 0.0001);
+    const step = niceStep(maxVal, 4);
+    const maxY = Math.max(step, Math.ceil(maxVal / step) * step);
+
+    // Gitterlinien + Achsen-Beschriftung
+    doc.setLineWidth(0.2);
+    for (let v = 0; v <= maxY + step / 2; v += step) {
+      const gy = baseY - (v / maxY) * (H - 6);
+      doc.setDrawColor(...(v === 0 ? [203, 213, 225] : BORDER));
+      doc.line(plotX, gy, ML + CW, gy);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.setTextColor(...GRAY);
+      doc.text(fmtCompact(v), plotX - 1.5, gy + 1, { align: 'right' });
+    }
+    doc.setFontSize(6);
+    doc.setTextColor(...GRAY);
+    doc.text(CUR_SYMBOLS[currency] || currency, plotX - 1.5, y + 1.5, { align: 'right' });
+
+    const n = daysArr.length;
+    const slot = plotW / n;
+    const barW = Math.max(1.5, Math.min(slot * 0.66, 9));
+    const labelEvery = Math.ceil(n / 14);
+    daysArr.forEach((d, i) => {
+      const x = plotX + i * slot + (slot - barW) / 2;
       let top = baseY;
-      catOrder.forEach((cat, ci) => {
+      present.forEach(cat => {
         const v = d.segs[cat] || 0;
         if (v <= 0) return;
-        const h = (v / maxVal) * (H - 4);
-        doc.setFillColor(...hexToRgb(CHART_COLORS[ci % CHART_COLORS.length]));
+        const h = (v / maxY) * (H - 6);
+        doc.setFillColor(...hexToRgb(colorOf[cat] || REST_COLOR));
         doc.rect(x, top - h, barW, h, 'F');
         top -= h;
       });
@@ -431,8 +687,47 @@ export function exportVacationPDF(vacation, expenses) {
         doc.text(`${dd[2]}.${dd[1]}`, x + barW / 2, baseY + 3.5, { align: 'center' });
       }
     });
-    y = baseY + 7;
+    y = baseY + 8;
     doc.setLineWidth(0.2);
+  }
+
+  // Divergierendes Balkendiagramm für die Bilanz pro Person
+  // (positiv = bekommt Geld, negativ = schuldet Geld).
+  function balanceChart(rows, currency) {
+    if (!rows.length) return;
+    const labelW = 36, valW = 27;
+    const plotW = CW - labelW;
+    const half = plotW / 2 - valW;
+    const rowH = 7, gap = 3.4;
+    const blockH = rows.length * (rowH + gap) + 4;
+    ensure(blockH);
+    const axisX = ML + labelW + plotW / 2;
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.3);
+    doc.line(axisX, y - 1, axisX, y + rows.length * (rowH + gap) - gap + 1);
+    doc.setLineWidth(0.2);
+    const maxAbs = Math.max(...rows.map(r => Math.abs(r.balance)), 0.0001);
+    rows.forEach(r => {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...DARK);
+      doc.text(doc.splitTextToSize(r.person, labelW - 3)[0], ML, y + rowH - 2);
+      const neutral = Math.abs(r.balance) < 0.005;
+      const pos = r.balance >= 0;
+      const color = neutral ? [148, 163, 184] : pos ? [22, 163, 74] : [220, 38, 38];
+      const w = Math.max(0.8, (Math.abs(r.balance) / maxAbs) * half);
+      const bx = pos ? axisX : axisX - w;
+      doc.setFillColor(...color);
+      doc.roundedRect(bx, y, w, rowH, 1.2, 1.2, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(...color);
+      const valTxt = `${pos && !neutral ? '+' : ''}${fmtMoney(r.balance, currency)}`;
+      if (pos) doc.text(valTxt, axisX + w + 2, y + rowH - 2);
+      else doc.text(valTxt, axisX - w - 2, y + rowH - 2, { align: 'right' });
+      y += rowH + gap;
+    });
+    y += 4;
   }
 
   // Generische Tabelle mit Seitenumbruch + wiederholtem Kopf
@@ -528,24 +823,28 @@ export function exportVacationPDF(vacation, expenses) {
     : 'Keine Daten';
   const genDate = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
+  doc.setProperties({ title: `${vacation?.name || 'Urlaubsausgaben'} – Ausgabenbericht` });
+
   header(vacation?.name || 'Urlaubsausgaben', `Zeitraum: ${zeitraum}   •   Erstellt am ${genDate}   •   Währung: ${displayCurrency} (${sym})`);
 
   // Zusammenfassung
-  sectionTitle('Zusammenfassung');
-  const summaryCards = [
-    { label: 'Gesamtausgaben', value: fmtMoney(total, displayCurrency), accent: '#0ea5e9' },
-    { label: 'Anzahl Ausgaben', value: String(count), accent: '#6366f1' },
-    { label: 'Ø pro Tag', value: fmtMoney(dailyAvg, displayCurrency), accent: '#10b981' },
-    { label: 'Zeitraum (Tage)', value: String(days), accent: '#f59e0b' },
-    { label: 'Kategorien', value: String(catRows.length), accent: '#ec4899' },
-  ];
-  if (isShared) summaryCards.push({ label: 'Teilnehmer', value: String(participants.length), accent: '#8b5cf6' });
-  kpiCards(summaryCards);
+  if (cfg.sections.summary) {
+    sectionTitle('Zusammenfassung', 26);
+    const summaryCards = [
+      { label: 'Gesamtausgaben', value: fmtMoney(total, displayCurrency), accent: '#0ea5e9' },
+      { label: 'Anzahl Ausgaben', value: String(count), accent: '#6366f1' },
+      { label: 'Ø pro Tag', value: fmtMoney(dailyAvg, displayCurrency), accent: '#10b981' },
+      { label: 'Zeitraum (Tage)', value: String(days), accent: '#f59e0b' },
+      { label: 'Kategorien', value: String(catRows.length), accent: '#ec4899' },
+    ];
+    if (isShared) summaryCards.push({ label: 'Teilnehmer', value: String(participants.length), accent: '#8b5cf6' });
+    kpiCards(summaryCards);
+  }
 
   // Eigene KPIs
   const userKpis = vacation?.kpis || [];
-  if (userKpis.length) {
-    sectionTitle('Kennzahlen (KPIs)');
+  if (cfg.sections.kpis && userKpis.length) {
+    sectionTitle('Kennzahlen (KPIs)', 26);
     const ctx = { expenses: list, rates, displayCurrency, participants, payments };
     const cards = userKpis.map((k, i) => {
       const v = kpiValue(k, ctx);
@@ -561,83 +860,116 @@ export function exportVacationPDF(vacation, expenses) {
     kpiCards(cards);
   }
 
-  // Ausgaben nach Kategorie
-  sectionTitle('Ausgaben nach Kategorie');
-  if (catRows.length) {
-    hBarChart(catRows.slice(0, 12).map((c, i) => ({ label: c.name, value: c.sum, pct: c.pct, color: CHART_COLORS[i % CHART_COLORS.length] })), displayCurrency);
-    table(
-      [
-        { key: 'name', label: 'Kategorie', width: 96, wrap: true },
-        { key: 'count', label: 'Anzahl', width: 24, align: 'right' },
-        { key: 'sum', label: `Betrag (${sym})`, width: 36, align: 'right' },
-        { key: 'pct', label: 'Anteil', width: 26, align: 'right' },
-      ],
-      catRows.map(c => ({ name: c.name, count: c.count, sum: fmtNumber(c.sum), pct: c.pct.toFixed(1) + '%' })),
-      { totalRow: { name: 'Gesamt', count: count, sum: fmtNumber(total), pct: '100%' } }
-    );
-  } else {
-    note('Keine Ausgaben erfasst.');
+  // Ausgaben nach Kategorie (Donut / Balken / Tabelle)
+  const wantCatSection = cfg.charts.catDonut.enabled || cfg.charts.catBar.enabled || cfg.sections.categoryTable;
+  if (wantCatSection) {
+    sectionTitle('Ausgaben nach Kategorie', cfg.charts.catDonut.enabled ? 64 : 30);
+    if (!catRows.length) {
+      note('Keine Ausgaben erfasst.');
+    } else {
+      const bothCharts = cfg.charts.catDonut.enabled && cfg.charts.catBar.enabled;
+      if (cfg.charts.catDonut.enabled) {
+        const rowsD = catRowsFor(cfg.charts.catDonut.excluded);
+        if (rowsD.length) {
+          if (bothCharts) subLabel('Anteile', Math.max(54, Math.min(rowsD.length, 11) * 6.6) + 6);
+          donutChart(rowsD.map(c => ({ name: c.name, sum: c.sum, color: colorOf[c.name] })), displayCurrency);
+          chartNote(cfg.charts.catDonut.excluded);
+        }
+      }
+      if (cfg.charts.catBar.enabled) {
+        const rowsB = catRowsFor(cfg.charts.catBar.excluded);
+        if (rowsB.length) {
+          if (bothCharts) subLabel('Kategorien im Vergleich', Math.min(rowsB.length, 14) * 10.2 + 2);
+          hBarChart(rowsB.slice(0, 14).map(c => ({ label: c.name, value: c.sum, pct: c.pct, color: colorOf[c.name] })), displayCurrency);
+          chartNote(cfg.charts.catBar.excluded);
+        }
+      }
+      if (cfg.sections.categoryTable) {
+        table(
+          [
+            { key: 'name', label: 'Kategorie', width: 96, wrap: true },
+            { key: 'count', label: 'Anzahl', width: 24, align: 'right' },
+            { key: 'sum', label: `Betrag (${sym})`, width: 36, align: 'right' },
+            { key: 'pct', label: 'Anteil', width: 26, align: 'right' },
+          ],
+          catRows.map(c => ({ name: c.name, count: c.count, sum: fmtNumber(c.sum), pct: c.pct.toFixed(1) + '%' })),
+          { totalRow: { name: 'Gesamt', count: count, sum: fmtNumber(total), pct: '100%' } }
+        );
+      }
+    }
   }
 
   // Zeitverlauf (gestapelt nach Kategorien)
-  if (dayRows.length > 1) {
-    sectionTitle('Ausgaben im Zeitverlauf');
-    stackedTimeChart(dayRows, catRows.map(c => c.name), displayCurrency);
+  if (cfg.charts.time.enabled) {
+    const dayRows = dayRowsFor(cfg.charts.time.excluded);
+    if (dayRows.length > 1) {
+      sectionTitle('Ausgaben im Zeitverlauf', 70);
+      const timeCats = catRows.map(c => c.name).filter(c => !(cfg.charts.time.excluded || []).includes(c));
+      stackedTimeChart(dayRows, timeCats, displayCurrency);
+      chartNote(cfg.charts.time.excluded);
+    }
   }
 
   // Geteilte Bilanz
-  if (isShared && participants.length) {
-    sectionTitle('Bilanz pro Person');
-    table(
-      [
-        { key: 'person', label: 'Teilnehmer', width: 92, wrap: true },
-        { key: 'paid', label: `Bezahlt (${sym})`, width: 45, align: 'right' },
-        { key: 'balance', label: `Saldo (${sym})`, width: 45, align: 'right', colorFor: (r) => r._bal > 0.01 ? [22, 163, 74] : r._bal < -0.01 ? [220, 38, 38] : DARK },
-      ],
-      balanceRows.map(b => ({ person: b.person, paid: fmtNumber(b.paid), balance: `${b.balance > 0 ? '+' : ''}${fmtNumber(b.balance)}`, _bal: b.balance }))
-    );
-    if (settlements.length) {
-      sectionTitle('Ausgleichszahlungen');
+  if (isShared && participants.length && (cfg.charts.balance.enabled || cfg.sections.balanceTable)) {
+    sectionTitle('Bilanz pro Person', Math.min(balanceRows.length * 11 + 14, 80));
+    if (cfg.charts.balance.enabled) {
+      balanceChart(balanceRows, displayCurrency);
+    }
+    if (cfg.sections.balanceTable) {
       table(
         [
-          { key: 'from', label: 'Von', width: 70, wrap: true },
-          { key: 'to', label: 'An', width: 70, wrap: true },
-          { key: 'amount', label: `Betrag (${sym})`, width: 42, align: 'right' },
+          { key: 'person', label: 'Teilnehmer', width: 92, wrap: true },
+          { key: 'paid', label: `Bezahlt (${sym})`, width: 45, align: 'right' },
+          { key: 'balance', label: `Saldo (${sym})`, width: 45, align: 'right', colorFor: (r) => r._bal > 0.01 ? [22, 163, 74] : r._bal < -0.01 ? [220, 38, 38] : DARK },
         ],
-        settlements.map(s => ({ from: s.from, to: s.to, amount: fmtNumber(s.amount) }))
+        balanceRows.map(b => ({ person: b.person, paid: fmtNumber(b.paid), balance: `${b.balance > 0 ? '+' : ''}${fmtNumber(b.balance)}`, _bal: b.balance }))
       );
+      if (settlements.length) {
+        sectionTitle('Ausgleichszahlungen', 24);
+        table(
+          [
+            { key: 'from', label: 'Von', width: 70, wrap: true },
+            { key: 'to', label: 'An', width: 70, wrap: true },
+            { key: 'amount', label: `Betrag (${sym})`, width: 42, align: 'right' },
+          ],
+          settlements.map(s => ({ from: s.from, to: s.to, amount: fmtNumber(s.amount) }))
+        );
+      }
     }
   }
 
   // Alle Ausgaben
-  sectionTitle('Alle Ausgaben');
-  if (list.length) {
-    const sorted = list.slice().sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.name || '').localeCompare(b.name || ''));
-    const cols = [{ key: 'date', label: 'Datum', width: 20 }];
-    let nameW = CW - 20 - 36 - 30;
-    if (isShared) nameW -= 30;
-    if (multiCurrency) nameW -= 28;
-    cols.push({ key: 'name', label: 'Ausgabe', width: nameW, wrap: true });
-    cols.push({ key: 'category', label: 'Kategorie', width: 36, wrap: true });
-    if (isShared) cols.push({ key: 'paidBy', label: 'Bezahlt von', width: 30, wrap: true });
-    if (multiCurrency) cols.push({ key: 'orig', label: 'Original', width: 28, align: 'right' });
-    cols.push({ key: 'amount', label: `Betrag (${sym})`, width: 30, align: 'right' });
+  if (cfg.sections.expenses) {
+    sectionTitle('Alle Ausgaben', 30);
+    if (list.length) {
+      const sorted = list.slice().sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.name || '').localeCompare(b.name || ''));
+      const cols = [{ key: 'date', label: 'Datum', width: 20 }];
+      let nameW = CW - 20 - 36 - 30;
+      if (isShared) nameW -= 30;
+      if (multiCurrency) nameW -= 28;
+      cols.push({ key: 'name', label: 'Ausgabe', width: nameW, wrap: true });
+      cols.push({ key: 'category', label: 'Kategorie', width: 36, wrap: true });
+      if (isShared) cols.push({ key: 'paidBy', label: 'Bezahlt von', width: 30, wrap: true });
+      if (multiCurrency) cols.push({ key: 'orig', label: 'Original', width: 28, align: 'right' });
+      cols.push({ key: 'amount', label: `Betrag (${sym})`, width: 30, align: 'right' });
 
-    const rows = sorted.map(e => {
-      const conv = convert(e.amount, e.exchangeRate, displayCurrency, rates);
-      return {
-        date: fmtDate(e.date),
-        name: e.name || '(ohne Name)',
-        category: e.category || '—',
-        paidBy: e.paidBy || '—',
-        orig: multiCurrency ? fmtMoney(parseFloat(e.amount) || 0, e.currency || displayCurrency) : '',
-        amount: fmtNumber(conv),
-      };
-    });
-    const totalRow = { date: '', name: 'Gesamt', category: '', paidBy: '', orig: '', amount: fmtNumber(total) };
-    table(cols, rows, { fontSize: 8.5, totalRow });
-  } else {
-    note('Keine Ausgaben erfasst.');
+      const rows = sorted.map(e => {
+        const conv = convert(e.amount, e.exchangeRate, displayCurrency, rates);
+        return {
+          date: fmtDate(e.date),
+          name: e.name || '(ohne Name)',
+          category: e.category || '—',
+          paidBy: e.paidBy || '—',
+          orig: multiCurrency ? fmtMoney(parseFloat(e.amount) || 0, e.currency || displayCurrency) : '',
+          amount: fmtNumber(conv),
+        };
+      });
+      const totalRow = { date: '', name: 'Gesamt', category: '', paidBy: '', orig: '', amount: fmtNumber(total) };
+      table(cols, rows, { fontSize: 8.5, totalRow });
+    } else {
+      note('Keine Ausgaben erfasst.');
+    }
   }
 
   // ---- Fußzeile auf allen Seiten ----

@@ -4,7 +4,8 @@ import { updateVacation } from '../utils/db';
 import { updateUser } from '../utils/db';
 import { useVacation } from '../contexts/VacationContext';
 import { useAuth } from '../contexts/AuthContext';
-import { exportVacationPDF, exportAsExcel } from '../utils/exportUtils';
+import { exportAsExcel } from '../utils/exportUtils';
+import PdfExportModal from '../components/PdfExportModal';
 import { DEFAULT_AI_MODEL, AI_MODEL_OPTIONS } from '../utils/aiReceipt';
 import { Settings as SettingsIcon, DollarSign, Eye, EyeOff, Users, Download, Key, LogOut, ChevronDown, ChevronUp, Plus, Trash2, Save, X, FileText, FileSpreadsheet, UserCog, User, Info, Edit3, Sparkles } from 'lucide-react';
 
@@ -387,6 +388,7 @@ export default function Settings({ onAdminPanel, onLogout }) {
 
   const [toast, setToast] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showPdfModal, setShowPdfModal] = useState(false);
 
   // --- OpenAI API-Key (pro User, geräteübergreifend in Firestore) ---
   const [apiKey, setApiKey] = useState(currentUser?.openaiApiKey || '');
@@ -576,7 +578,7 @@ export default function Settings({ onAdminPanel, onLogout }) {
 
   // --- Export ---
   const handleExportPDF = () => {
-    exportVacationPDF(currentVacation, expenses);
+    setShowPdfModal(true);
   };
   const handleExportExcel = () => {
     const data = (expenses || []).map(e => ({
@@ -894,12 +896,19 @@ export default function Settings({ onAdminPanel, onLogout }) {
             </button>
           </div>
           <p style={{ fontSize: '0.82rem', color: '#64748b', lineHeight: 1.5, marginTop: '0.75rem', marginBottom: 0 }}>
-            Der PDF-Bericht enthält sauber als A4-Dokument: Zusammenfassung, KPIs, Diagramme,
-            Kategorie-Auswertung{sharedMode ? ', Bilanz & Ausgleich' : ''} und die komplette Ausgabenliste –
-            kein Screenshot.
+            Der PDF-Bericht ist ein sauberes A4-Dokument: Vor dem Export wählst du aus, welche
+            Diagramme und Abschnitte enthalten sind, und kannst Kategorien (z.&nbsp;B. Unterkunft)
+            in einzelnen Diagrammen ausblenden{sharedMode ? ' – inkl. Bilanz & Ausgleich' : ''}.
           </p>
         </Section>
       </motion.div>
+
+      <PdfExportModal
+        open={showPdfModal}
+        onClose={() => setShowPdfModal(false)}
+        vacation={currentVacation}
+        expenses={expenses}
+      />
 
       {/* KI Beleg-Scanner / OpenAI API-Key */}
       <motion.div
