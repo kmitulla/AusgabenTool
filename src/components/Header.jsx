@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import SyncIndicator from './SyncIndicator';
 
 export default function Header({ vacationName }) {
   return (
@@ -74,6 +75,7 @@ export default function Header({ vacationName }) {
           </motion.p>
         )}
       </div>
+      <SyncIndicator />
     </motion.div>
   );
 }

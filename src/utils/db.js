@@ -1,39 +1,60 @@
 import { db } from '../firebase';
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
-  query, where, addDoc, writeBatch, serverTimestamp
+  query, where, writeBatch, serverTimestamp
 } from 'firebase/firestore';
+import { trackWrite } from './syncStatus';
+
+// Bei aktivierter Offline-Persistenz resolven Firestore-Write-Promises erst
+// nach Server-Bestätigung. Lokal ist die Änderung aber sofort wirksam –
+// deshalb warten wir offline gar nicht und online höchstens kurz, damit die
+// UI nie hängen bleibt. Der Sync-Status wird über trackWrite verfolgt.
+function commitWrite(promise) {
+  trackWrite(promise);
+  promise.catch(err => console.error('Firestore-Sync fehlgeschlagen:', err));
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return Promise.resolve();
+  }
+  return Promise.race([
+    promise,
+    new Promise(resolve => setTimeout(resolve, 2500))
+  ]);
+}
+
+// Zeigt bei noch nicht synchronisierten Dokumenten einen geschätzten
+// Zeitstempel statt null, damit Sortierungen nach createdAt stimmen.
+const SNAP_OPTS = { serverTimestamps: 'estimate' };
 
 // ============ USERS ============
 
 export async function getUsers() {
   const snap = await getDocs(collection(db, 'users'));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return snap.docs.map(d => ({ id: d.id, ...d.data(SNAP_OPTS) }));
 }
 
 export async function getUser(userId) {
   const snap = await getDoc(doc(db, 'users', userId));
-  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+  return snap.exists() ? { id: snap.id, ...snap.data(SNAP_OPTS) } : null;
 }
 
 export async function createUser(username, password, isAdmin = false) {
   const id = username.toLowerCase().replace(/\s+/g, '_');
-  await setDoc(doc(db, 'users', id), {
+  await commitWrite(setDoc(doc(db, 'users', id), {
     username,
     password: password || '',
     isAdmin,
     mustSetPassword: !password,
     createdAt: serverTimestamp()
-  });
+  }));
   return id;
 }
 
 export async function updateUser(userId, data) {
-  await updateDoc(doc(db, 'users', userId), data);
+  await commitWrite(updateDoc(doc(db, 'users', userId), data));
 }
 
 export async function deleteUser(userId) {
-  await deleteDoc(doc(db, 'users', userId));
+  await commitWrite(deleteDoc(doc(db, 'users', userId)));
 }
 
 export async function loginUser(username, password) {
@@ -57,15 +78,16 @@ export async function getVacations(userId) {
   const snap1 = await getDocs(query(collection(db, 'vacations'), where('userId', '==', userId)));
   const snap2 = await getDocs(query(collection(db, 'vacations'), where('members', 'array-contains', userId)));
   const map = new Map();
-  snap1.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
-  snap2.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
+  snap1.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data(SNAP_OPTS) }));
+  snap2.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data(SNAP_OPTS) }));
   const vacs = Array.from(map.values());
   vacs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
   return vacs;
 }
 
 export async function createVacation(userId, name) {
-  const ref = await addDoc(collection(db, 'vacations'), {
+  const ref = doc(collection(db, 'vacations'));
+  await commitWrite(setDoc(ref, {
     userId,
     name,
     inviteCode: generateInviteCode(),
@@ -91,12 +113,12 @@ export async function createVacation(userId, name) {
     categories: ['Essen', 'Trinken', 'Transport', 'Unterkunft', 'Aktivitäten', 'Shopping', 'Sonstiges'],
     kpis: [],
     charts: []
-  });
+  }));
   return ref.id;
 }
 
 export async function updateVacation(vacationId, data) {
-  await updateDoc(doc(db, 'vacations', vacationId), data);
+  await commitWrite(updateDoc(doc(db, 'vacations', vacationId), data));
 }
 
 export async function deleteVacation(vacationId) {
@@ -107,12 +129,12 @@ export async function deleteVacation(vacationId) {
   );
   expSnap.docs.forEach(d => batch.delete(d.ref));
   batch.delete(doc(db, 'vacations', vacationId));
-  await batch.commit();
+  await commitWrite(batch.commit());
 }
 
 export async function getVacation(vacationId) {
   const snap = await getDoc(doc(db, 'vacations', vacationId));
-  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+  return snap.exists() ? { id: snap.id, ...snap.data(SNAP_OPTS) } : null;
 }
 
 // ============ EXPENSES ============
@@ -121,26 +143,27 @@ export async function getExpenses(vacationId) {
   const snap = await getDocs(
     query(collection(db, 'expenses'), where('vacationId', '==', vacationId))
   );
-  const exps = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const exps = snap.docs.map(d => ({ id: d.id, ...d.data(SNAP_OPTS) }));
   exps.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
   return exps;
 }
 
 export async function createExpense(vacationId, data) {
-  const ref = await addDoc(collection(db, 'expenses'), {
+  const ref = doc(collection(db, 'expenses'));
+  await commitWrite(setDoc(ref, {
     vacationId,
     ...data,
     createdAt: serverTimestamp()
-  });
+  }));
   return ref.id;
 }
 
 export async function updateExpense(expenseId, data) {
-  await updateDoc(doc(db, 'expenses', expenseId), data);
+  await commitWrite(updateDoc(doc(db, 'expenses', expenseId), data));
 }
 
 export async function deleteExpense(expenseId) {
-  await deleteDoc(doc(db, 'expenses', expenseId));
+  await commitWrite(deleteDoc(doc(db, 'expenses', expenseId)));
 }
 
 // ============ CATEGORIES ============
@@ -168,17 +191,17 @@ export async function leaveVacation(vacationId, userId) {
   if (!snap.exists()) return;
   const vac = snap.data();
   const members = (vac.members || [vac.userId]).filter(m => m !== userId);
-  await updateDoc(vacRef, { members });
+  await commitWrite(updateDoc(vacRef, { members }));
 }
 
 export async function joinVacation(code, userId) {
   const snap = await getDocs(query(collection(db, 'vacations'), where('inviteCode', '==', code.toUpperCase())));
   if (snap.empty) return { success: false, error: 'Kein Urlaub mit diesem Code gefunden' };
   const vacDoc = snap.docs[0];
-  const vac = { id: vacDoc.id, ...vacDoc.data() };
+  const vac = { id: vacDoc.id, ...vacDoc.data(SNAP_OPTS) };
   const members = vac.members || [vac.userId];
   if (members.includes(userId)) return { success: false, error: 'Du bist bereits in diesem Urlaub' };
-  await updateDoc(doc(db, 'vacations', vac.id), { members: [...members, userId] });
+  await commitWrite(updateDoc(doc(db, 'vacations', vac.id), { members: [...members, userId] }));
   return { success: true, vacation: vac };
 }
 
@@ -188,7 +211,7 @@ export async function getDestinations(vacationId) {
   const snap = await getDocs(
     query(collection(db, 'destinations'), where('vacationId', '==', vacationId))
   );
-  const dests = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const dests = snap.docs.map(d => ({ id: d.id, ...d.data(SNAP_OPTS) }));
   dests.sort((a, b) => {
     const dateA = a.date || '';
     const dateB = b.date || '';
@@ -199,20 +222,21 @@ export async function getDestinations(vacationId) {
 }
 
 export async function createDestination(vacationId, data) {
-  const ref = await addDoc(collection(db, 'destinations'), {
+  const ref = doc(collection(db, 'destinations'));
+  await commitWrite(setDoc(ref, {
     vacationId,
     ...data,
     createdAt: serverTimestamp()
-  });
+  }));
   return ref.id;
 }
 
 export async function updateDestination(destinationId, data) {
-  await updateDoc(doc(db, 'destinations', destinationId), data);
+  await commitWrite(updateDoc(doc(db, 'destinations', destinationId), data));
 }
 
 export async function deleteDestination(destinationId) {
-  await deleteDoc(doc(db, 'destinations', destinationId));
+  await commitWrite(deleteDoc(doc(db, 'destinations', destinationId)));
 }
 
 // ============ SHARED VACATION CALCULATIONS ============
