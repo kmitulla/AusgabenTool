@@ -588,7 +588,7 @@ export default function Overview() {
     page: { padding: 16 },
     section: { marginBottom: 28 },
     sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    sectionTitle: { fontSize: 16, fontWeight: 700, color: '#0c4a6e', display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.01em' },
+    sectionTitle: { fontSize: 16, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8, letterSpacing: '-0.01em' },
     grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 14 },
     // Subtle iOS-Liquid-Glass KPI tile — translucent frosted surface, soft rounded shadow, no colored halo
     kpiCard: () => ({
@@ -628,17 +628,27 @@ export default function Overview() {
       marginBottom: 20,
     },
     btn: { padding: '10px 18px', borderRadius: 12, border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer', transition: 'all 0.2s' },
-    btnPrimary: { background: 'linear-gradient(135deg, #0ea5e9, #06b6d4)', color: '#fff' },
-    btnSmall: { padding: '6px 12px', borderRadius: 8, border: 'none', fontSize: 12, cursor: 'pointer', background: '#f1f5f9', color: '#64748b' },
+    btnPrimary: { background: 'linear-gradient(135deg, #0ea5e9, #06b6d4)', color: '#fff', boxShadow: '0 4px 14px -6px rgba(14,165,233,0.55)' },
+    btnSmall: { padding: '6px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.7)', fontSize: 12, cursor: 'pointer', background: 'rgba(255,255,255,0.55)', color: '#475569', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), 0 2px 6px -4px rgba(15,23,42,0.2)' },
     btnGhost: { background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#94a3b8' },
     label: { fontSize: 11, fontWeight: 600, color: '#64748b', marginBottom: 6, display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' },
-    input: { width: '100%', padding: '10px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 14, outline: 'none', background: '#f8fafc', boxSizing: 'border-box' },
-    select: { padding: '10px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 14, background: '#f8fafc', outline: 'none', width: '100%', boxSizing: 'border-box' },
-    overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 },
-    modal: { background: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 480, maxHeight: '85vh', overflow: 'auto' },
+    input: { width: '100%', padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(15,23,42,0.1)', fontSize: 14, outline: 'none', background: 'rgba(255,255,255,0.65)', boxSizing: 'border-box' },
+    select: { padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(15,23,42,0.1)', fontSize: 14, background: 'rgba(255,255,255,0.65)', outline: 'none', width: '100%', boxSizing: 'border-box' },
+    overlay: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 },
+    modal: {
+      background: 'linear-gradient(160deg, rgba(255,255,255,0.96), rgba(255,255,255,0.84))',
+      backdropFilter: 'blur(24px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+      border: '1px solid rgba(255,255,255,0.7)',
+      boxShadow: '0 24px 60px -20px rgba(15,23,42,0.35), inset 0 1px 0 rgba(255,255,255,0.9)',
+      borderRadius: 22, padding: 24, width: '100%', maxWidth: 480, maxHeight: '85vh', overflow: 'auto',
+    },
     badge: (active) => ({
-      display: 'inline-block', padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', transition: 'all 0.2s',
-      background: active ? '#0ea5e9' : '#f0f9ff', color: active ? '#fff' : '#0ea5e9',
+      display: 'inline-block', padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s',
+      border: active ? '1px solid transparent' : '1px solid rgba(14,165,233,0.25)',
+      background: active ? 'linear-gradient(135deg, #0ea5e9, #06b6d4)' : 'rgba(14,165,233,0.08)',
+      color: active ? '#fff' : '#0284c7',
+      boxShadow: active ? '0 3px 10px -4px rgba(14,165,233,0.6)' : 'none',
     }),
   };
 
@@ -652,7 +662,7 @@ export default function Overview() {
   }
 
   const renderCategoryMerger = (form, setForm) => (
-    <div style={{ marginTop: 12, padding: 14, background: '#f8fafc', borderRadius: 12 }}>
+    <div style={{ marginTop: 12, padding: 14, background: 'rgba(15,23,42,0.04)', border: '1px solid rgba(15,23,42,0.05)', borderRadius: 12 }}>
       <label style={s.label}>Kategorien zusammenfassen</label>
       {(form.mergedCategories || []).map((m, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: 13 }}>
@@ -720,7 +730,7 @@ export default function Overview() {
                         <button key={type} onClick={() => setForm(p => ({ ...p, type }))} style={{
                           padding: '8px 12px', borderRadius: 10, border: 'none', fontWeight: 600, fontSize: 12, cursor: 'pointer',
                           display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.2s',
-                          background: form.type === type ? '#0ea5e9' : '#f1f5f9',
+                          background: form.type === type ? '#0ea5e9' : 'rgba(15,23,42,0.06)',
                           color: form.type === type ? '#fff' : '#64748b',
                         }}>
                           <Icon size={14} /> {label}
@@ -738,7 +748,7 @@ export default function Overview() {
                         ].map(([mode, label]) => (
                           <button key={mode} onClick={() => setForm(p => ({ ...p, stackMode: mode }))} style={{
                             ...s.btn, flex: 1, fontSize: 12,
-                            background: (form.stackMode || 'category_person') === mode ? '#8b5cf6' : '#f1f5f9',
+                            background: (form.stackMode || 'category_person') === mode ? '#8b5cf6' : 'rgba(15,23,42,0.06)',
                             color: (form.stackMode || 'category_person') === mode ? '#fff' : '#64748b',
                           }}>
                             {label}
@@ -760,7 +770,7 @@ export default function Overview() {
                           {[['hour','Stunden'],['day','Tage'],['week','Wochen'],['month','Monate']].map(([g, lbl]) => (
                             <button key={g} onClick={() => setForm(p => ({ ...p, timeGranularity: g }))} style={{
                               padding: '8px 12px', borderRadius: 10, border: 'none', fontWeight: 600, fontSize: 12, cursor: 'pointer',
-                              background: (form.timeGranularity || 'day') === g ? '#0ea5e9' : '#f1f5f9',
+                              background: (form.timeGranularity || 'day') === g ? '#0ea5e9' : 'rgba(15,23,42,0.06)',
                               color: (form.timeGranularity || 'day') === g ? '#fff' : '#64748b',
                             }}>{lbl}</button>
                           ))}
@@ -772,7 +782,7 @@ export default function Overview() {
                           {[['category','Kategorien'], ...(isShared ? [['person','Personen']] : [])].map(([m, lbl]) => (
                             <button key={m} onClick={() => setForm(p => ({ ...p, timeStackBy: m }))} style={{
                               ...s.btn, flex: 1, fontSize: 12,
-                              background: (form.timeStackBy || 'category') === m ? '#8b5cf6' : '#f1f5f9',
+                              background: (form.timeStackBy || 'category') === m ? '#8b5cf6' : 'rgba(15,23,42,0.06)',
                               color: (form.timeStackBy || 'category') === m ? '#fff' : '#64748b',
                             }}>{lbl}</button>
                           ))}
@@ -856,7 +866,7 @@ export default function Overview() {
                         {[['category','Kategorien'],['person','Personen']].map(([m, lbl]) => (
                           <button key={m} onClick={() => setForm(p => ({ ...p, splitBy: m }))} style={{
                             ...s.btn, flex: 1, fontSize: 12,
-                            background: (form.splitBy || 'category') === m ? '#0ea5e9' : '#f1f5f9',
+                            background: (form.splitBy || 'category') === m ? '#0ea5e9' : 'rgba(15,23,42,0.06)',
                             color: (form.splitBy || 'category') === m ? '#fff' : '#64748b',
                           }}>{lbl}</button>
                         ))}
@@ -877,7 +887,7 @@ export default function Overview() {
                         ].map(([k, lbl]) => (
                           <button key={k} onClick={() => setForm(p => ({ ...p, sortOrder: k }))} style={{
                             padding: '8px 10px', borderRadius: 10, border: 'none', fontWeight: 600, fontSize: 12, cursor: 'pointer',
-                            background: (form.sortOrder || 'value_desc') === k ? '#0ea5e9' : '#f1f5f9',
+                            background: (form.sortOrder || 'value_desc') === k ? '#0ea5e9' : 'rgba(15,23,42,0.06)',
                             color: (form.sortOrder || 'value_desc') === k ? '#fff' : '#64748b',
                             transition: 'all 0.2s',
                           }}>{lbl}</button>
@@ -937,14 +947,14 @@ export default function Overview() {
               setEditKpi(null);
               setShowKpiModal(true);
             }}
-            style={{ ...s.btnSmall, background: '#e0f2fe', color: '#0284c7' }}
+            style={{ ...s.btnSmall, background: 'rgba(14,165,233,0.12)', border: '1px solid rgba(14,165,233,0.2)', color: '#0284c7' }}
           >
             <Plus size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} /> KPI
           </motion.button>
         </div>
 
         {kpis.length === 0 ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: 'center', padding: 30, background: '#f8fafc', borderRadius: 16, color: '#94a3b8' }}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: 'center', padding: 30, background: 'linear-gradient(160deg, rgba(255,255,255,0.7), rgba(255,255,255,0.5))', backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: '1px solid rgba(255,255,255,0.65)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), 0 6px 18px -12px rgba(15,23,42,0.15)', borderRadius: 18, color: '#94a3b8' }}>
             <TrendingUp size={32} style={{ marginBottom: 8, opacity: 0.5 }} />
             <p style={{ fontSize: 14 }}>Noch keine KPIs angelegt</p>
             <p style={{ fontSize: 12 }}>Füge KPIs hinzu um deine Ausgaben im Blick zu behalten</p>
@@ -1035,14 +1045,14 @@ export default function Overview() {
               setEditChart(null);
               setShowChartModal(true);
             }}
-            style={{ ...s.btnSmall, background: '#e0f2fe', color: '#0284c7' }}
+            style={{ ...s.btnSmall, background: 'rgba(14,165,233,0.12)', border: '1px solid rgba(14,165,233,0.2)', color: '#0284c7' }}
           >
             <Plus size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Diagramm
           </motion.button>
         </div>
 
         {charts.length === 0 ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: 'center', padding: 30, background: '#f8fafc', borderRadius: 16, color: '#94a3b8' }}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: 'center', padding: 30, background: 'linear-gradient(160deg, rgba(255,255,255,0.7), rgba(255,255,255,0.5))', backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: '1px solid rgba(255,255,255,0.65)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), 0 6px 18px -12px rgba(15,23,42,0.15)', borderRadius: 18, color: '#94a3b8' }}>
             <PieChart size={32} style={{ marginBottom: 8, opacity: 0.5 }} />
             <p style={{ fontSize: 14 }}>Noch keine Diagramme angelegt</p>
             <p style={{ fontSize: 12 }}>Erstelle Diagramme für eine visuelle Übersicht</p>

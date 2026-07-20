@@ -10,24 +10,26 @@ export default function Header({ vacationName }) {
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        paddingTop: 'max(14px, env(safe-area-inset-top))',
-        paddingBottom: 16,
-        paddingLeft: 'max(20px, env(safe-area-inset-left))',
-        paddingRight: 'max(20px, env(safe-area-inset-right))',
-        color: 'white',
+        paddingTop: 'max(12px, env(safe-area-inset-top))',
+        paddingBottom: 12,
+        paddingLeft: 'max(18px, env(safe-area-inset-left))',
+        paddingRight: 'max(18px, env(safe-area-inset-right))',
+        color: '#0f172a',
         display: 'flex',
         alignItems: 'center',
         gap: 14,
-        background: 'linear-gradient(135deg, #0ea5e9 0%, #06b6d4 55%, #0d9488 100%)',
-        boxShadow: '0 8px 24px -10px rgba(14,165,233,0.45)',
-        overflow: 'hidden',
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(255,255,255,0.5) 100%)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+        borderBottom: '1px solid rgba(255,255,255,0.6)',
+        boxShadow: '0 8px 24px -16px rgba(15,23,42,0.18), inset 0 -1px 0 rgba(15,23,42,0.04)',
       }}
     >
-      {/* soft frosted highlight overlay for depth */}
+      {/* specular highlight for the glass feel */}
       <div style={{
         position: 'absolute',
         inset: 0,
-        background: 'radial-gradient(140% 80% at 0% -20%, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 55%), radial-gradient(80% 60% at 110% 110%, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 50%)',
+        background: 'radial-gradient(120% 90% at 8% -30%, rgba(255,255,255,0.75) 0%, rgba(255,255,255,0) 55%)',
         pointerEvents: 'none',
       }} />
       <motion.div
@@ -36,11 +38,11 @@ export default function Header({ vacationName }) {
         style={{
           width: 42, height: 42, borderRadius: 14, flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(255,255,255,0.18)',
+          background: 'linear-gradient(160deg, rgba(14,165,233,0.22), rgba(6,182,212,0.14))',
           backdropFilter: 'blur(10px)',
           WebkitBackdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255,255,255,0.28)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)',
+          border: '1px solid rgba(255,255,255,0.7)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), 0 2px 8px -4px rgba(14,165,233,0.35)',
           fontSize: 22, lineHeight: 1,
           position: 'relative', zIndex: 1,
         }}
@@ -53,7 +55,7 @@ export default function Header({ vacationName }) {
           fontSize: 18,
           fontWeight: 700,
           letterSpacing: '-0.02em',
-          textShadow: '0 1px 2px rgba(0,0,0,0.1)',
+          color: '#0f172a',
         }}>
           Urlaubsausgaben
         </h1>
@@ -62,9 +64,9 @@ export default function Header({ vacationName }) {
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             style={{
-              margin: '2px 0 0',
+              margin: '1px 0 0',
               fontSize: 13,
-              opacity: 0.95,
+              color: '#475569',
               fontWeight: 500,
               overflow: 'hidden',
               textOverflow: 'ellipsis',

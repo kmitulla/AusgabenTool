@@ -252,7 +252,7 @@ export default function Expenses() {
   const s = {
     page: { padding: '16px' },
     section: { marginBottom: 20 },
-    sectionTitle: { fontSize: 15, fontWeight: 700, color: '#0c4a6e', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 },
+    sectionTitle: { fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 },
     card: {
       background: 'linear-gradient(160deg, rgba(255,255,255,0.94), rgba(255,255,255,0.82))',
       backdropFilter: 'blur(18px) saturate(160%)',
@@ -262,15 +262,29 @@ export default function Expenses() {
       marginBottom: 14,
       border: '1px solid rgba(255,255,255,0.7)',
     },
-    input: { width: '100%', padding: '12px 14px', borderRadius: 12, border: '1.5px solid #e2e8f0', fontSize: 15, outline: 'none', background: 'rgba(248,250,252,0.85)', transition: 'border-color 0.2s, background 0.2s', boxSizing: 'border-box', minWidth: 0 },
+    input: { width: '100%', padding: '12px 14px', borderRadius: 12, border: '1px solid rgba(15,23,42,0.1)', fontSize: 15, outline: 'none', background: 'rgba(255,255,255,0.65)', transition: 'border-color 0.2s, background 0.2s', boxSizing: 'border-box', minWidth: 0 },
     btn: { padding: '12px 24px', borderRadius: 12, border: 'none', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s' },
-    btnPrimary: { background: 'linear-gradient(135deg, #0ea5e9, #06b6d4)', color: '#fff' },
-    btnDanger: { background: '#fee2e2', color: '#ef4444' },
+    btnPrimary: { background: 'linear-gradient(135deg, #0ea5e9, #06b6d4)', color: '#fff', boxShadow: '0 4px 14px -6px rgba(14,165,233,0.55)' },
+    btnDanger: { background: 'rgba(239,68,68,0.12)', color: '#ef4444' },
     btnGhost: { background: 'transparent', color: '#64748b', padding: '8px 12px' },
     label: { fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 6, display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' },
-    overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 },
-    modal: { background: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 500, maxHeight: '85vh', overflow: 'auto' },
-    fab: { position: 'fixed', bottom: 100, right: 20, width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg, #0ea5e9, #06b6d4)', color: '#fff', border: 'none', boxShadow: '0 4px 20px rgba(14,165,233,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 },
+    overlay: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 },
+    modal: {
+      background: 'linear-gradient(160deg, rgba(255,255,255,0.96), rgba(255,255,255,0.84))',
+      backdropFilter: 'blur(24px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+      border: '1px solid rgba(255,255,255,0.7)',
+      boxShadow: '0 24px 60px -20px rgba(15,23,42,0.35), inset 0 1px 0 rgba(255,255,255,0.9)',
+      borderRadius: 22, padding: 24, width: '100%', maxWidth: 500, maxHeight: '85vh', overflow: 'auto',
+    },
+    fab: {
+      position: 'fixed', bottom: 'calc(96px + env(safe-area-inset-bottom))', right: 20, width: 56, height: 56, borderRadius: '50%',
+      background: 'linear-gradient(160deg, rgba(14,165,233,0.9), rgba(6,182,212,0.85))',
+      backdropFilter: 'blur(12px) saturate(160%)', WebkitBackdropFilter: 'blur(12px) saturate(160%)',
+      color: '#fff', border: '1px solid rgba(255,255,255,0.55)',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), 0 8px 24px -8px rgba(14,165,233,0.6)',
+      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50,
+    },
     expenseCard: {
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       padding: '14px 16px',
@@ -282,9 +296,9 @@ export default function Expenses() {
       border: '1px solid rgba(255,255,255,0.7)',
       cursor: 'pointer',
     },
-    badge: { display: 'inline-block', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: '#f0f9ff', color: '#0ea5e9' },
+    badge: { display: 'inline-block', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: 'rgba(14,165,233,0.1)', color: '#0284c7' },
     filterBar: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' },
-    select: { padding: '10px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 14, background: '#f8fafc', outline: 'none', cursor: 'pointer', width: '100%', boxSizing: 'border-box' },
+    select: { padding: '10px 14px', borderRadius: 12, border: '1px solid rgba(15,23,42,0.1)', fontSize: 14, background: 'rgba(255,255,255,0.65)', outline: 'none', cursor: 'pointer', width: '100%', boxSizing: 'border-box' },
   };
 
   return (
@@ -331,7 +345,7 @@ export default function Expenses() {
       {!showAddForm && canCreate && (
         <>
           <motion.button
-            style={{ ...s.fab, bottom: 236, background: 'linear-gradient(135deg, #6366f1, #4f46e5)', boxShadow: '0 4px 20px rgba(99,102,241,0.4)' }}
+            style={{ ...s.fab, bottom: 'calc(232px + env(safe-area-inset-bottom))', background: 'linear-gradient(160deg, rgba(99,102,241,0.9), rgba(79,70,229,0.85))', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), 0 8px 24px -8px rgba(99,102,241,0.6)' }}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => handleScanClick('gallery')}
@@ -340,7 +354,7 @@ export default function Expenses() {
             <Image size={24} />
           </motion.button>
           <motion.button
-            style={{ ...s.fab, bottom: 168, background: 'linear-gradient(135deg, #8b5cf6, #6366f1)', boxShadow: '0 4px 20px rgba(139,92,246,0.4)' }}
+            style={{ ...s.fab, bottom: 'calc(164px + env(safe-area-inset-bottom))', background: 'linear-gradient(160deg, rgba(139,92,246,0.9), rgba(99,102,241,0.85))', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), 0 8px 24px -8px rgba(139,92,246,0.6)' }}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => handleScanClick('camera')}
@@ -369,7 +383,7 @@ export default function Expenses() {
             style={{ ...s.card, overflow: 'hidden', borderColor: '#0ea5e9', borderWidth: 2 }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 16, color: '#0c4a6e' }}>Neue Ausgabe</h3>
+              <h3 style={{ margin: 0, fontSize: 16, color: '#0f172a' }}>Neue Ausgabe</h3>
               <button onClick={() => setShowAddForm(false)} style={{ ...s.btnGhost, padding: 4 }}><X size={20} /></button>
             </div>
 
@@ -393,7 +407,7 @@ export default function Expenses() {
                 disabled={scanning}
                 style={{
                   ...s.btn, flex: 1, opacity: scanning ? 0.7 : 1,
-                  background: '#eef2ff', color: '#4f46e5',
+                  background: 'rgba(99,102,241,0.12)', color: '#4f46e5',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 }}
               >
@@ -432,7 +446,7 @@ export default function Expenses() {
                     <button
                       type="button"
                       onClick={() => { setShowNewCategoryInput(true); setNewCategoryName(''); }}
-                      style={{ background: '#e0f2fe', border: 'none', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flexShrink: 0 }}
+                      style={{ background: 'rgba(14,165,233,0.15)', border: 'none', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0, flexShrink: 0 }}
                       title="Neue Kategorie hinzufügen"
                     >
                       <Plus size={14} color="#0284c7" />
@@ -528,7 +542,7 @@ export default function Expenses() {
                             <button
                               type="button"
                               onClick={() => { setShowNewCategoryInput(false); setNewCategoryName(''); }}
-                              style={{ ...s.btn, background: '#f1f5f9', color: '#64748b', padding: '8px 12px', flexShrink: 0 }}
+                              style={{ ...s.btn, background: 'rgba(15,23,42,0.06)', color: '#64748b', padding: '8px 12px', flexShrink: 0 }}
                             >
                               <X size={16} />
                             </button>
@@ -545,8 +559,8 @@ export default function Expenses() {
                           exit={{ opacity: 0, y: -5 }}
                           style={{
                             position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
-                            background: '#fff', borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
-                            border: '1px solid #e2e8f0', maxHeight: 200, overflow: 'auto', marginTop: 4,
+                            background: 'linear-gradient(160deg, rgba(255,255,255,0.97), rgba(255,255,255,0.88))', backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', borderRadius: 14, boxShadow: '0 12px 32px -8px rgba(15,23,42,0.25), inset 0 1px 0 rgba(255,255,255,0.9)',
+                            border: '1px solid rgba(255,255,255,0.7)', maxHeight: 200, overflow: 'auto', marginTop: 4,
                           }}
                         >
                           {formData.category && (
@@ -557,7 +571,7 @@ export default function Expenses() {
                                 setCategorySearch('');
                                 setShowCategoryDropdown(false);
                               }}
-                              style={{ padding: '10px 16px', cursor: 'pointer', fontSize: 14, color: '#94a3b8', fontStyle: 'italic', borderBottom: '1px solid #f1f5f9' }}
+                              style={{ padding: '10px 16px', cursor: 'pointer', fontSize: 14, color: '#94a3b8', fontStyle: 'italic', borderBottom: '1px solid rgba(15,23,42,0.06)' }}
                             >
                               Keine Kategorie
                             </div>
@@ -573,8 +587,8 @@ export default function Expenses() {
                               }}
                               style={{
                                 padding: '10px 16px', cursor: 'pointer', fontSize: 14,
-                                borderBottom: '1px solid #f1f5f9',
-                                background: formData.category === cat ? '#e0f2fe' : 'transparent',
+                                borderBottom: '1px solid rgba(15,23,42,0.06)',
+                                background: formData.category === cat ? 'rgba(14,165,233,0.12)' : 'transparent',
                                 fontWeight: formData.category === cat ? 600 : 400,
                               }}
                             >
@@ -609,7 +623,7 @@ export default function Expenses() {
                         <button key={mode} type="button"
                           onClick={() => setFormData(prev => ({ ...prev, splitMode: mode }))}
                           style={{ padding: '4px 10px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                            background: (formData.splitMode || 'equal') === mode ? '#0ea5e9' : '#f1f5f9',
+                            background: (formData.splitMode || 'equal') === mode ? '#0ea5e9' : 'rgba(15,23,42,0.06)',
                             color: (formData.splitMode || 'equal') === mode ? '#fff' : '#64748b' }}>
                           {mode === 'equal' ? 'Gleich' : mode === 'percent' ? 'Prozent' : 'Betrag'}
                         </button>
@@ -626,7 +640,7 @@ export default function Expenses() {
                             <label style={{
                               display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px',
                               borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 500,
-                              background: isChecked ? '#e0f2fe' : '#f1f5f9',
+                              background: isChecked ? 'rgba(14,165,233,0.14)' : 'rgba(15,23,42,0.05)',
                               color: isChecked ? '#0284c7' : '#64748b',
                               border: `2px solid ${isChecked ? '#0ea5e9' : 'transparent'}`,
                               transition: 'all 0.2s', flex: 1,
@@ -773,7 +787,7 @@ export default function Expenses() {
                 <Check size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />
                 Speichern
               </motion.button>
-              <button onClick={() => setShowAddForm(false)} style={{ ...s.btn, background: '#f1f5f9', color: '#64748b' }}>
+              <button onClick={() => setShowAddForm(false)} style={{ ...s.btn, background: 'rgba(15,23,42,0.06)', color: '#64748b' }}>
                 Abbrechen
               </button>
             </div>
@@ -803,7 +817,7 @@ export default function Expenses() {
             onClick={() => setShowFilters(!showFilters)}
             style={{
               ...s.btn, padding: '10px 14px',
-              background: showFilters || filterCategory.length > 0 ? '#e0f2fe' : '#f1f5f9',
+              background: showFilters || filterCategory.length > 0 ? 'rgba(14,165,233,0.15)' : 'rgba(255,255,255,0.6)',
               color: showFilters || filterCategory.length > 0 ? '#0284c7' : '#64748b',
             }}
           >
@@ -812,7 +826,7 @@ export default function Expenses() {
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
-            style={{ ...s.btn, padding: '10px 14px', background: '#f1f5f9', color: '#64748b' }}
+            style={{ ...s.btn, padding: '10px 14px', background: 'rgba(15,23,42,0.06)', color: '#64748b' }}
           >
             {sortDir === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
           </motion.button>
@@ -836,8 +850,8 @@ export default function Expenses() {
                         onClick={() => setSortBy(key)}
                         style={{
                           ...s.badge, cursor: 'pointer', border: 'none',
-                          background: sortBy === key ? '#0ea5e9' : '#f0f9ff',
-                          color: sortBy === key ? '#fff' : '#0ea5e9',
+                          background: sortBy === key ? '#0ea5e9' : 'rgba(14,165,233,0.1)',
+                          color: sortBy === key ? '#fff' : '#0284c7',
                         }}
                       >
                         {label}
@@ -857,8 +871,8 @@ export default function Expenses() {
                         )}
                         style={{
                           ...s.badge, cursor: 'pointer', border: 'none',
-                          background: filterCategory.includes(cat) ? '#0ea5e9' : '#f0f9ff',
-                          color: filterCategory.includes(cat) ? '#fff' : '#0ea5e9',
+                          background: filterCategory.includes(cat) ? '#0ea5e9' : 'rgba(14,165,233,0.1)',
+                          color: filterCategory.includes(cat) ? '#fff' : '#0284c7',
                         }}
                       >
                         {cat}
@@ -947,7 +961,7 @@ export default function Expenses() {
                 </div>
               </div>
               <div style={{ textAlign: 'right', marginLeft: 12, flexShrink: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 16, color: '#0c4a6e' }}>{formatAmount(exp)}</div>
+                <div style={{ fontWeight: 700, fontSize: 16, color: '#0f172a' }}>{formatAmount(exp)}</div>
                 {canEdit && (
                   <div style={{ display: 'flex', gap: 4, marginTop: 4, justifyContent: 'flex-end' }}>
                     <motion.button
@@ -974,7 +988,7 @@ export default function Expenses() {
               <p style={{ color: '#64748b', marginBottom: 20 }}>Diese Aktion kann nicht rückgängig gemacht werden.</p>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => handleDelete(deleteConfirm)} style={{ ...s.btn, ...s.btnDanger, flex: 1 }}>Löschen</button>
-                <button onClick={() => setDeleteConfirm(null)} style={{ ...s.btn, background: '#f1f5f9', color: '#64748b', flex: 1 }}>Abbrechen</button>
+                <button onClick={() => setDeleteConfirm(null)} style={{ ...s.btn, background: 'rgba(15,23,42,0.06)', color: '#64748b', flex: 1 }}>Abbrechen</button>
               </div>
             </motion.div>
           </motion.div>
@@ -1049,14 +1063,14 @@ export default function Expenses() {
                             exit={{ opacity: 0, y: -5 }}
                             style={{
                               position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
-                              background: '#fff', borderRadius: 12, boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
-                              border: '1px solid #e2e8f0', maxHeight: 200, overflow: 'auto', marginTop: 4,
+                              background: 'linear-gradient(160deg, rgba(255,255,255,0.97), rgba(255,255,255,0.88))', backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', borderRadius: 14, boxShadow: '0 12px 32px -8px rgba(15,23,42,0.25), inset 0 1px 0 rgba(255,255,255,0.9)',
+                              border: '1px solid rgba(255,255,255,0.7)', maxHeight: 200, overflow: 'auto', marginTop: 4,
                             }}
                           >
                             <div
                               onMouseDown={e => e.preventDefault()}
                               onClick={() => { setEditData(p => ({ ...p, category: '' })); setShowCategoryDropdown(false); }}
-                              style={{ padding: '10px 16px', cursor: 'pointer', fontSize: 14, color: '#94a3b8', fontStyle: 'italic', borderBottom: '1px solid #f1f5f9' }}
+                              style={{ padding: '10px 16px', cursor: 'pointer', fontSize: 14, color: '#94a3b8', fontStyle: 'italic', borderBottom: '1px solid rgba(15,23,42,0.06)' }}
                             >
                               Keine Kategorie
                             </div>
@@ -1067,8 +1081,8 @@ export default function Expenses() {
                                 onClick={() => { setEditData(p => ({ ...p, category: cat })); setShowCategoryDropdown(false); }}
                                 style={{
                                   padding: '10px 16px', cursor: 'pointer', fontSize: 14,
-                                  borderBottom: '1px solid #f1f5f9',
-                                  background: editData.category === cat ? '#e0f2fe' : 'transparent',
+                                  borderBottom: '1px solid rgba(15,23,42,0.06)',
+                                  background: editData.category === cat ? 'rgba(14,165,233,0.12)' : 'transparent',
                                   fontWeight: editData.category === cat ? 600 : 400,
                                 }}
                               >
@@ -1118,7 +1132,7 @@ export default function Expenses() {
                           <button key={mode} type="button"
                             onClick={() => setEditData(prev => ({ ...prev, splitMode: mode }))}
                             style={{ padding: '4px 10px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                              background: (editData.splitMode || 'equal') === mode ? '#0ea5e9' : '#f1f5f9',
+                              background: (editData.splitMode || 'equal') === mode ? '#0ea5e9' : 'rgba(15,23,42,0.06)',
                               color: (editData.splitMode || 'equal') === mode ? '#fff' : '#64748b' }}>
                             {mode === 'equal' ? 'Gleich' : mode === 'percent' ? 'Prozent' : 'Betrag'}
                           </button>
@@ -1134,7 +1148,7 @@ export default function Expenses() {
                               <label style={{
                                 display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px',
                                 borderRadius: 10, cursor: 'pointer', fontSize: 13,
-                                background: isChecked ? '#e0f2fe' : '#f1f5f9',
+                                background: isChecked ? 'rgba(14,165,233,0.14)' : 'rgba(15,23,42,0.05)',
                                 color: isChecked ? '#0284c7' : '#64748b',
                                 border: `2px solid ${isChecked ? '#0ea5e9' : 'transparent'}`,
                                 transition: 'all 0.2s', flex: 1,
@@ -1213,7 +1227,7 @@ export default function Expenses() {
 
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <motion.button whileTap={{ scale: 0.98 }} onClick={handleEdit} style={{ ...s.btn, ...s.btnPrimary, flex: 1 }}>Speichern</motion.button>
-                <button onClick={() => setEditExpense(null)} style={{ ...s.btn, background: '#f1f5f9', color: '#64748b' }}>Abbrechen</button>
+                <button onClick={() => setEditExpense(null)} style={{ ...s.btn, background: 'rgba(15,23,42,0.06)', color: '#64748b' }}>Abbrechen</button>
               </div>
             </motion.div>
           </motion.div>
@@ -1233,7 +1247,7 @@ export default function Expenses() {
                 <p style={{ color: '#94a3b8', textAlign: 'center' }}>Keine anderen Urlaube vorhanden</p>
               ) : (
                 vacations.filter(v => v.id !== currentVacation?.id).map(vac => (
-                  <div key={vac.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f1f5f9' }}>
+                  <div key={vac.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid rgba(15,23,42,0.06)' }}>
                     <span style={{ fontWeight: 500 }}>{vac.name}</span>
                     <motion.button
                       whileTap={{ scale: 0.95 }}

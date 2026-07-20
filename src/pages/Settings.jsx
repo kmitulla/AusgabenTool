@@ -29,12 +29,14 @@ const styles = {
     margin: 0,
   },
   section: {
-    background: '#ffffff',
-    borderRadius: '16px',
-    border: '1px solid #e2e8f0',
+    background: 'linear-gradient(160deg, rgba(255,255,255,0.82), rgba(255,255,255,0.62))',
+    backdropFilter: 'blur(20px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+    borderRadius: '18px',
+    border: '1px solid rgba(255,255,255,0.65)',
     marginBottom: '1rem',
     overflow: 'hidden',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+    boxShadow: '0 8px 24px -14px rgba(15,23,42,0.18), inset 0 1px 0 rgba(255,255,255,0.85)',
   },
   sectionHeader: {
     display: 'flex',
@@ -68,7 +70,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '0.6rem 0',
-    borderBottom: '1px solid #f1f5f9',
+    borderBottom: '1px solid rgba(15,23,42,0.06)',
   },
   toggleLabel: {
     fontSize: '0.95rem',
@@ -102,7 +104,7 @@ const styles = {
     alignItems: 'center',
     gap: '0.5rem',
     padding: '0.5rem 0',
-    borderBottom: '1px solid #f1f5f9',
+    borderBottom: '1px solid rgba(15,23,42,0.06)',
   },
   rateCode: {
     fontWeight: 700,
@@ -114,10 +116,10 @@ const styles = {
     flex: 1,
     padding: '0.5rem 0.75rem',
     borderRadius: '8px',
-    border: '1px solid #e2e8f0',
+    border: '1px solid rgba(15,23,42,0.1)',
     fontSize: '0.9rem',
     outline: 'none',
-    background: '#f8fafc',
+    background: 'rgba(255,255,255,0.6)',
     transition: 'border-color 0.2s',
   },
   smallBtn: (color = '#ef4444') => ({
@@ -143,20 +145,20 @@ const styles = {
   addInput: {
     padding: '0.5rem 0.75rem',
     borderRadius: '8px',
-    border: '1px solid #e2e8f0',
+    border: '1px solid rgba(15,23,42,0.1)',
     fontSize: '0.9rem',
     outline: 'none',
-    background: '#f8fafc',
+    background: 'rgba(255,255,255,0.6)',
     width: '70px',
     textTransform: 'uppercase',
   },
   select: {
     padding: '0.5rem 0.75rem',
     borderRadius: '8px',
-    border: '1px solid #e2e8f0',
+    border: '1px solid rgba(15,23,42,0.1)',
     fontSize: '0.9rem',
     outline: 'none',
-    background: '#f8fafc',
+    background: 'rgba(255,255,255,0.6)',
     cursor: 'pointer',
     marginTop: '0.75rem',
     width: '100%',
@@ -173,7 +175,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '0.5rem 0',
-    borderBottom: '1px solid #f1f5f9',
+    borderBottom: '1px solid rgba(15,23,42,0.06)',
   },
   participantName: {
     fontSize: '0.95rem',
@@ -181,8 +183,8 @@ const styles = {
     fontWeight: 500,
   },
   warning: {
-    background: '#fef3c7',
-    border: '1px solid #fcd34d',
+    background: 'rgba(251,191,36,0.16)',
+    border: '1px solid rgba(251,191,36,0.4)',
     borderRadius: '8px',
     padding: '0.65rem 0.85rem',
     fontSize: '0.85rem',
@@ -214,10 +216,10 @@ const styles = {
     width: '100%',
     padding: '0.7rem 0.85rem',
     borderRadius: '10px',
-    border: '1px solid #e2e8f0',
+    border: '1px solid rgba(15,23,42,0.1)',
     fontSize: '0.95rem',
     outline: 'none',
-    background: '#f8fafc',
+    background: 'rgba(255,255,255,0.6)',
     boxSizing: 'border-box',
     transition: 'border-color 0.2s',
   },
@@ -271,7 +273,7 @@ const styles = {
     padding: '0.75rem 1.25rem',
     borderRadius: '10px',
     border: '2px solid #6366f1',
-    background: '#eef2ff',
+    background: 'rgba(99,102,241,0.12)',
     color: '#4f46e5',
     fontSize: '0.95rem',
     fontWeight: 700,
@@ -634,7 +636,7 @@ export default function Settings({ onAdminPanel, onLogout }) {
           alignItems: 'center',
           gap: '0.5rem',
           padding: '0.75rem 1.25rem',
-          background: '#f0fdf4',
+          background: 'rgba(34,197,94,0.12)',
           borderRadius: '12px',
           border: '1px solid #bbf7d0',
           marginBottom: '1rem',
@@ -709,8 +711,8 @@ export default function Settings({ onAdminPanel, onLogout }) {
                 gap: '0.35rem',
                 padding: '0.35rem 0.65rem',
                 borderRadius: '8px',
-                border: '1px solid #e2e8f0',
-                background: '#f8fafc',
+                border: '1px solid rgba(15,23,42,0.1)',
+                background: 'rgba(255,255,255,0.6)',
                 color: '#64748b',
                 fontSize: '0.8rem',
                 cursor: 'pointer',
@@ -727,7 +729,7 @@ export default function Settings({ onAdminPanel, onLogout }) {
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.2 }}
                 style={{
-                  background: '#eff6ff',
+                  background: 'rgba(59,130,246,0.1)',
                   border: '1px solid #bfdbfe',
                   borderRadius: '10px',
                   padding: '0.75rem 1rem',
@@ -922,7 +924,7 @@ export default function Settings({ onAdminPanel, onLogout }) {
             vom Kassenzettel zu erkennen. Der Key gilt nur für dich und wird geräteübergreifend
             gespeichert.
           </p>
-          <div style={{ ...styles.warning, background: '#f5f3ff', border: '1px solid #ddd6fe', color: '#6d28d9', marginTop: 0, marginBottom: '0.85rem' }}>
+          <div style={{ ...styles.warning, background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#6d28d9', marginTop: 0, marginBottom: '0.85rem' }}>
             <strong>Wichtig:</strong> Verwende einen <strong>OpenRouter</strong>-Key (beginnt mit
             „sk-or-"). Er funktioniert direkt aus der App – ohne Server. Ein OpenRouter-Key
             erstellst du kostenlos unter openrouter.ai → Keys und lädst dort Guthaben auf.
@@ -974,7 +976,7 @@ export default function Settings({ onAdminPanel, onLogout }) {
             <Save size={17} /> {savingApiKey ? 'Speichern…' : 'API-Key & Modell speichern'}
           </button>
 
-          <div style={{ ...styles.warning, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af' }}>
+          <div style={{ ...styles.warning, background: 'rgba(59,130,246,0.1)', border: '1px solid #bfdbfe', color: '#1e40af' }}>
             Tipp: Key erstellen unter openrouter.ai → Keys, etwas Guthaben aufladen, Key hier
             einfügen. Pro gescanntem Beleg fallen nur wenige Cent an (Modell: GPT‑4o Vision).
           </div>
@@ -1028,7 +1030,7 @@ export default function Settings({ onAdminPanel, onLogout }) {
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 style={{
-                  background: '#fef2f2',
+                  background: 'rgba(239,68,68,0.1)',
                   border: '1px solid #fecaca',
                   color: '#dc2626',
                   padding: '0.6rem 0.85rem',
@@ -1046,7 +1048,7 @@ export default function Settings({ onAdminPanel, onLogout }) {
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 style={{
-                  background: '#f0fdf4',
+                  background: 'rgba(34,197,94,0.12)',
                   border: '1px solid #bbf7d0',
                   color: '#16a34a',
                   padding: '0.6rem 0.85rem',

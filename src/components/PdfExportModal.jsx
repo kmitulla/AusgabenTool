@@ -58,17 +58,17 @@ export default function PdfExportModal({ open, onClose, vacation, expenses }) {
   };
 
   const st = {
-    overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 },
-    modal: { background: '#fff', borderRadius: 20, padding: 24, width: '100%', maxWidth: 540, maxHeight: '88vh', overflow: 'auto', boxSizing: 'border-box' },
+    overlay: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 },
+    modal: { background: 'linear-gradient(160deg, rgba(255,255,255,0.96), rgba(255,255,255,0.84))', backdropFilter: 'blur(24px) saturate(180%)', WebkitBackdropFilter: 'blur(24px) saturate(180%)', border: '1px solid rgba(255,255,255,0.7)', boxShadow: '0 24px 60px -20px rgba(15,23,42,0.35), inset 0 1px 0 rgba(255,255,255,0.9)', borderRadius: 22, padding: 24, width: '100%', maxWidth: 540, maxHeight: '88vh', overflow: 'auto', boxSizing: 'border-box' },
     groupLabel: { fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '18px 0 8px' },
-    card: { border: '1px solid #e2e8f0', borderRadius: 14, padding: '12px 14px', marginBottom: 8, background: '#fff' },
+    card: { border: '1px solid rgba(255,255,255,0.7)', borderRadius: 14, padding: '12px 14px', marginBottom: 8, background: 'rgba(255,255,255,0.55)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), 0 2px 8px -4px rgba(15,23,42,0.1)' },
     rowHead: { display: 'flex', alignItems: 'center', gap: 12 },
     iconBox: (color) => ({ width: 34, height: 34, borderRadius: 10, background: `${color}18`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }),
     title: { fontSize: 14, fontWeight: 700, color: '#0f172a', lineHeight: 1.25 },
     desc: { fontSize: 12, color: '#94a3b8', lineHeight: 1.35 },
     chip: (active) => ({
       padding: '5px 11px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', transition: 'all 0.15s',
-      background: active ? '#0ea5e9' : '#f1f5f9', color: active ? '#fff' : '#94a3b8',
+      background: active ? '#0ea5e9' : 'rgba(15,23,42,0.06)', color: active ? '#fff' : '#94a3b8',
       textDecoration: active ? 'none' : 'line-through',
     }),
     hint: { fontSize: 11, color: '#94a3b8', marginTop: 8, lineHeight: 1.4 },
@@ -79,7 +79,7 @@ export default function PdfExportModal({ open, onClose, vacation, expenses }) {
       onClick={onClick}
       role="switch"
       aria-checked={on}
-      style={{ width: 42, height: 25, borderRadius: 13, background: on ? '#0ea5e9' : '#e2e8f0', position: 'relative', cursor: 'pointer', transition: 'background 0.2s', flexShrink: 0, marginLeft: 'auto' }}
+      style={{ width: 42, height: 25, borderRadius: 13, background: on ? '#0ea5e9' : 'rgba(15,23,42,0.15)', position: 'relative', cursor: 'pointer', transition: 'background 0.2s', flexShrink: 0, marginLeft: 'auto' }}
     >
       <div style={{ position: 'absolute', top: 3, left: on ? 20 : 3, width: 19, height: 19, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)', transition: 'left 0.2s' }} />
     </div>
@@ -183,7 +183,7 @@ export default function PdfExportModal({ open, onClose, vacation, expenses }) {
             <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
               <button
                 onClick={onClose}
-                style={{ flex: 1, padding: '12px 16px', borderRadius: 12, border: 'none', fontWeight: 600, fontSize: 14, cursor: 'pointer', background: '#f1f5f9', color: '#64748b' }}
+                style={{ flex: 1, padding: '12px 16px', borderRadius: 12, border: 'none', fontWeight: 600, fontSize: 14, cursor: 'pointer', background: 'rgba(15,23,42,0.06)', color: '#64748b' }}
               >
                 Abbrechen
               </button>

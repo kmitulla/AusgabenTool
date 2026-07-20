@@ -27,12 +27,14 @@ const styles = {
     margin: 0,
   },
   card: {
-    background: '#ffffff',
-    borderRadius: '16px',
-    border: '1px solid #e2e8f0',
+    background: 'linear-gradient(160deg, rgba(255,255,255,0.82), rgba(255,255,255,0.62))',
+    backdropFilter: 'blur(20px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+    borderRadius: '18px',
+    border: '1px solid rgba(255,255,255,0.65)',
     marginBottom: '1rem',
     overflow: 'hidden',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+    boxShadow: '0 8px 24px -14px rgba(15,23,42,0.18), inset 0 1px 0 rgba(255,255,255,0.85)',
   },
   cardHeader: {
     display: 'flex',
@@ -66,7 +68,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '0.5rem 0',
-    borderBottom: '1px solid #f1f5f9',
+    borderBottom: '1px solid rgba(15,23,42,0.06)',
   },
   participantLeft: {
     display: 'flex',
@@ -117,10 +119,10 @@ const styles = {
     flex: 1,
     padding: '0.5rem 0.75rem',
     borderRadius: '8px',
-    border: '1px solid #e2e8f0',
+    border: '1px solid rgba(15,23,42,0.1)',
     fontSize: '0.9rem',
     outline: 'none',
-    background: '#f8fafc',
+    background: 'rgba(255,255,255,0.6)',
   },
   addBtn: {
     display: 'flex',
@@ -144,7 +146,7 @@ const styles = {
   th: {
     textAlign: 'left',
     padding: '0.6rem 0.5rem',
-    borderBottom: '2px solid #e2e8f0',
+    borderBottom: '2px solid rgba(15,23,42,0.1)',
     color: '#64748b',
     fontWeight: 600,
     fontSize: '0.8rem',
@@ -153,7 +155,7 @@ const styles = {
   },
   td: {
     padding: '0.6rem 0.5rem',
-    borderBottom: '1px solid #f1f5f9',
+    borderBottom: '1px solid rgba(15,23,42,0.06)',
     color: '#334155',
   },
   balancePositive: {
@@ -173,10 +175,10 @@ const styles = {
     alignItems: 'center',
     gap: '0.75rem',
     padding: '0.85rem 1rem',
-    background: '#f8fafc',
+    background: 'rgba(255,255,255,0.6)',
     borderRadius: '12px',
     marginBottom: '0.6rem',
-    border: '1px solid #e2e8f0',
+    border: '1px solid rgba(15,23,42,0.1)',
   },
   settlementName: {
     fontWeight: 600,
@@ -215,9 +217,9 @@ const styles = {
     justifyContent: 'space-between',
     width: '100%',
     padding: '0.75rem 1rem',
-    background: '#f8fafc',
+    background: 'rgba(255,255,255,0.6)',
     borderRadius: '10px',
-    border: '1px solid #e2e8f0',
+    border: '1px solid rgba(15,23,42,0.1)',
     cursor: 'pointer',
     fontFamily: 'inherit',
     marginBottom: '0.5rem',
@@ -231,7 +233,7 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     padding: '0.35rem 0',
-    borderBottom: '1px solid #f1f5f9',
+    borderBottom: '1px solid rgba(15,23,42,0.06)',
   },
   exportBtnGroup: {
     display: 'flex',
@@ -278,7 +280,9 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    background: 'rgba(0,0,0,0.5)',
+    background: 'rgba(15,23,42,0.35)',
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -286,8 +290,12 @@ const styles = {
     padding: '1rem',
   },
   modalContent: {
-    background: '#fff',
-    borderRadius: '20px',
+    background: 'linear-gradient(160deg, rgba(255,255,255,0.96), rgba(255,255,255,0.84))',
+    backdropFilter: 'blur(24px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+    border: '1px solid rgba(255,255,255,0.7)',
+    boxShadow: '0 24px 60px -20px rgba(15,23,42,0.35), inset 0 1px 0 rgba(255,255,255,0.9)',
+    borderRadius: '22px',
     padding: '1.75rem',
     maxWidth: '500px',
     width: '100%',
@@ -299,7 +307,7 @@ const styles = {
     position: 'absolute',
     top: '1rem',
     right: '1rem',
-    background: '#f1f5f9',
+    background: 'rgba(15,23,42,0.06)',
     border: 'none',
     borderRadius: '8px',
     width: '32px',
@@ -818,27 +826,27 @@ export default function SharedVacation() {
                 {/* Add payment form */}
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
                   <select value={paymentForm.from} onChange={e => setPaymentForm(f => ({ ...f, from: e.target.value }))}
-                    style={{ flex: 1, minWidth: '90px', padding: '0.5rem 0.6rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.875rem', fontFamily: 'inherit', background: '#fff', color: '#334155' }}>
+                    style={{ flex: 1, minWidth: '90px', padding: '0.5rem 0.6rem', borderRadius: '8px', border: '1px solid rgba(15,23,42,0.1)', fontSize: '0.875rem', fontFamily: 'inherit', background: 'rgba(255,255,255,0.7)', color: '#334155' }}>
                     <option value="">Von</option>
                     {participants.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                   <select value={paymentForm.to} onChange={e => setPaymentForm(f => ({ ...f, to: e.target.value }))}
-                    style={{ flex: 1, minWidth: '90px', padding: '0.5rem 0.6rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.875rem', fontFamily: 'inherit', background: '#fff', color: '#334155' }}>
+                    style={{ flex: 1, minWidth: '90px', padding: '0.5rem 0.6rem', borderRadius: '8px', border: '1px solid rgba(15,23,42,0.1)', fontSize: '0.875rem', fontFamily: 'inherit', background: 'rgba(255,255,255,0.7)', color: '#334155' }}>
                     <option value="">An</option>
                     {participants.filter(p => p !== paymentForm.from).map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                   <input type="text" inputMode="decimal" pattern="[0-9]*[,.]?[0-9]*" min="0"
                     placeholder={`Betrag (${displayCurrency})`} value={(paymentForm.amount || '').replace('.', ',')}
                     onChange={e => setPaymentForm(f => ({ ...f, amount: e.target.value.replace(',', '.') }))}
-                    style={{ width: '110px', padding: '0.5rem 0.6rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.875rem', fontFamily: 'inherit' }} />
+                    style={{ width: '110px', padding: '0.5rem 0.6rem', borderRadius: '8px', border: '1px solid rgba(15,23,42,0.1)', fontSize: '0.875rem', fontFamily: 'inherit' }} />
                   <input type="date" value={paymentForm.date}
                     onChange={e => setPaymentForm(f => ({ ...f, date: e.target.value }))}
-                    style={{ width: '130px', padding: '0.5rem 0.6rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.875rem', fontFamily: 'inherit' }} />
+                    style={{ width: '130px', padding: '0.5rem 0.6rem', borderRadius: '8px', border: '1px solid rgba(15,23,42,0.1)', fontSize: '0.875rem', fontFamily: 'inherit' }} />
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
                   <input type="text" placeholder="Notiz (optional)" value={paymentForm.note}
                     onChange={e => setPaymentForm(f => ({ ...f, note: e.target.value }))}
-                    style={{ flex: 1, padding: '0.5rem 0.6rem', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.875rem', fontFamily: 'inherit' }} />
+                    style={{ flex: 1, padding: '0.5rem 0.6rem', borderRadius: '8px', border: '1px solid rgba(15,23,42,0.1)', fontSize: '0.875rem', fontFamily: 'inherit' }} />
                   <button onClick={handleAddPayment}
                     disabled={paymentSaving || !paymentForm.from || !paymentForm.to || !paymentForm.amount || paymentForm.from === paymentForm.to}
                     style={{ padding: '0.5rem 1rem', borderRadius: '8px', background: '#10b981', color: '#fff', border: 'none', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', opacity: (paymentSaving || !paymentForm.from || !paymentForm.to || !paymentForm.amount) ? 0.5 : 1 }}>
@@ -883,7 +891,7 @@ export default function SharedVacation() {
                               <button onClick={handleUpdatePayment} style={{ padding: '0.4rem 0.75rem', borderRadius: '7px', background: '#10b981', color: '#fff', border: 'none', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
                                 <Check size={14} />
                               </button>
-                              <button onClick={() => setEditPayment(null)} style={{ padding: '0.4rem 0.75rem', borderRadius: '7px', background: '#f1f5f9', color: '#64748b', border: 'none', cursor: 'pointer' }}>
+                              <button onClick={() => setEditPayment(null)} style={{ padding: '0.4rem 0.75rem', borderRadius: '7px', background: 'rgba(15,23,42,0.06)', color: '#64748b', border: 'none', cursor: 'pointer' }}>
                                 <X size={14} />
                               </button>
                             </div>

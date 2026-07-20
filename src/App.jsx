@@ -25,7 +25,6 @@ function AppContent() {
         alignItems: 'center',
         justifyContent: 'center',
         height: '100vh',
-        background: 'linear-gradient(135deg, #0c4a6e 0%, #164e63 50%, #134e4a 100%)',
       }}>
         <motion.div
           animate={{ rotate: 360 }}
@@ -33,7 +32,7 @@ function AppContent() {
           style={{
             width: '40px',
             height: '40px',
-            border: '3px solid rgba(255,255,255,0.2)',
+            border: '3px solid rgba(15,23,42,0.12)',
             borderTopColor: '#0ea5e9',
             borderRadius: '50%',
           }}
@@ -73,7 +72,6 @@ function MainApp({ activeTab, setActiveTab, onAdminPanel, onLogout }) {
         alignItems: 'center',
         justifyContent: 'center',
         height: '100vh',
-        background: '#f0f9ff',
       }}>
         <motion.div
           animate={{ rotate: 360 }}
@@ -81,7 +79,7 @@ function MainApp({ activeTab, setActiveTab, onAdminPanel, onLogout }) {
           style={{
             width: '40px',
             height: '40px',
-            border: '3px solid #e2e8f0',
+            border: '3px solid rgba(15,23,42,0.12)',
             borderTopColor: '#0ea5e9',
             borderRadius: '50%',
           }}
@@ -117,8 +115,9 @@ function MainApp({ activeTab, setActiveTab, onAdminPanel, onLogout }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#f0f9ff',
-      paddingBottom: '80px',
+      // Ambient Liquid-Glass backdrop comes from body::before (index.css);
+      // extra bottom padding keeps content clear of the floating tab bar.
+      paddingBottom: 'calc(96px + env(safe-area-inset-bottom))',
     }}>
       <Header vacationName={currentVacation?.name} />
       <AnimatePresence mode="wait">

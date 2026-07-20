@@ -8,9 +8,8 @@ import { Plus, Trash2, Edit3, Plane, Check, X, Share2, Users, Copy, Shield } fro
 const styles = {
   page: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
     fontFamily: "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif",
-    padding: '2rem 1rem 6rem',
+    padding: '1.5rem 1rem 6rem',
     position: 'relative',
   },
   container: {
@@ -31,18 +30,19 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 4px 16px rgba(59, 130, 246, 0.3)',
+    border: '1px solid rgba(255,255,255,0.5)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 6px 16px -6px rgba(59, 130, 246, 0.5)',
   },
   title: {
     fontSize: '1.75rem',
     fontWeight: 700,
-    color: '#f1f5f9',
+    color: '#0f172a',
     margin: 0,
     letterSpacing: '-0.02em',
   },
   subtitle: {
     fontSize: '0.875rem',
-    color: '#94a3b8',
+    color: '#64748b',
     margin: 0,
   },
   grid: {
@@ -52,21 +52,21 @@ const styles = {
   },
   card: (isSelected) => ({
     background: isSelected
-      ? 'rgba(59, 130, 246, 0.12)'
-      : 'rgba(255, 255, 255, 0.05)',
-    backdropFilter: 'blur(16px)',
-    WebkitBackdropFilter: 'blur(16px)',
-    borderRadius: '16px',
+      ? 'linear-gradient(160deg, rgba(59,130,246,0.18), rgba(99,102,241,0.1))'
+      : 'linear-gradient(160deg, rgba(255,255,255,0.8), rgba(255,255,255,0.6))',
+    backdropFilter: 'blur(20px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+    borderRadius: '18px',
     border: isSelected
-      ? '2px solid rgba(59, 130, 246, 0.6)'
-      : '1px solid rgba(255, 255, 255, 0.08)',
+      ? '1.5px solid rgba(59, 130, 246, 0.55)'
+      : '1px solid rgba(255, 255, 255, 0.65)',
     padding: '1.25rem',
     cursor: 'pointer',
     position: 'relative',
     overflow: 'hidden',
     boxShadow: isSelected
-      ? '0 0 24px rgba(59, 130, 246, 0.2), 0 8px 32px rgba(0, 0, 0, 0.3)'
-      : '0 4px 16px rgba(0, 0, 0, 0.2)',
+      ? '0 12px 32px -14px rgba(59, 130, 246, 0.45), inset 0 1px 0 rgba(255,255,255,0.7)'
+      : '0 8px 24px -14px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255,255,255,0.85)',
     transition: 'border-color 0.2s, box-shadow 0.2s, background 0.2s',
   }),
   cardInner: {
@@ -80,7 +80,7 @@ const styles = {
     borderRadius: '12px',
     background: isSelected
       ? 'linear-gradient(135deg, #3b82f6, #6366f1)'
-      : 'rgba(255, 255, 255, 0.08)',
+      : 'rgba(15, 23, 42, 0.06)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -94,7 +94,7 @@ const styles = {
   cardName: {
     fontSize: '1.05rem',
     fontWeight: 600,
-    color: '#f1f5f9',
+    color: '#0f172a',
     margin: 0,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -109,7 +109,7 @@ const styles = {
     display: 'inline-block',
     fontSize: '0.7rem',
     fontWeight: 600,
-    color: '#3b82f6',
+    color: '#2563eb',
     background: 'rgba(59, 130, 246, 0.15)',
     borderRadius: '6px',
     padding: '0.15rem 0.5rem',
@@ -123,7 +123,7 @@ const styles = {
     flexShrink: 0,
   },
   actionBtn: {
-    background: 'rgba(255, 255, 255, 0.06)',
+    background: 'rgba(15, 23, 42, 0.05)',
     border: 'none',
     borderRadius: '8px',
     width: '32px',
@@ -132,31 +132,34 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
-    color: '#94a3b8',
+    color: '#64748b',
     transition: 'background 0.15s, color 0.15s',
   },
   fab: {
     position: 'fixed',
-    bottom: '100px',
+    bottom: 'calc(96px + env(safe-area-inset-bottom))',
     right: '2rem',
     width: '56px',
     height: '56px',
     borderRadius: '16px',
-    background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
-    border: 'none',
+    background: 'linear-gradient(160deg, rgba(59,130,246,0.92), rgba(99,102,241,0.88))',
+    backdropFilter: 'blur(12px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(12px) saturate(160%)',
+    border: '1px solid rgba(255,255,255,0.55)',
     color: '#fff',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
-    boxShadow: '0 8px 24px rgba(59, 130, 246, 0.4)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), 0 8px 24px -8px rgba(59, 130, 246, 0.6)',
     zIndex: 50,
   },
   overlay: {
     position: 'fixed',
     inset: 0,
-    background: 'rgba(0, 0, 0, 0.6)',
-    backdropFilter: 'blur(4px)',
+    background: 'rgba(15, 23, 42, 0.35)',
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -164,27 +167,29 @@ const styles = {
     padding: '1rem',
   },
   modal: {
-    background: '#1e293b',
-    borderRadius: '20px',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
+    background: 'linear-gradient(160deg, rgba(255,255,255,0.96), rgba(255,255,255,0.84))',
+    backdropFilter: 'blur(24px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+    borderRadius: '22px',
+    border: '1px solid rgba(255, 255, 255, 0.7)',
     padding: '2rem',
     width: '100%',
     maxWidth: '400px',
-    boxShadow: '0 24px 64px rgba(0, 0, 0, 0.5)',
+    boxShadow: '0 24px 60px -20px rgba(15, 23, 42, 0.35), inset 0 1px 0 rgba(255,255,255,0.9)',
   },
   modalTitle: {
     fontSize: '1.25rem',
     fontWeight: 700,
-    color: '#f1f5f9',
+    color: '#0f172a',
     margin: '0 0 1.25rem',
   },
   input: {
     width: '100%',
     padding: '0.75rem 1rem',
-    background: 'rgba(255, 255, 255, 0.06)',
-    border: '1px solid rgba(255, 255, 255, 0.12)',
+    background: 'rgba(255, 255, 255, 0.65)',
+    border: '1px solid rgba(15, 23, 42, 0.12)',
     borderRadius: '12px',
-    color: '#f1f5f9',
+    color: '#0f172a',
     fontSize: '0.95rem',
     outline: 'none',
     fontFamily: 'inherit',
@@ -207,14 +212,15 @@ const styles = {
     fontSize: '0.9rem',
     cursor: 'pointer',
     fontFamily: 'inherit',
+    boxShadow: '0 4px 14px -6px rgba(59,130,246,0.55)',
     transition: 'opacity 0.15s',
   },
   btnSecondary: {
-    background: 'rgba(255, 255, 255, 0.06)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
+    background: 'rgba(15, 23, 42, 0.05)',
+    border: '1px solid rgba(15, 23, 42, 0.08)',
     borderRadius: '10px',
     padding: '0.6rem 1.25rem',
-    color: '#94a3b8',
+    color: '#475569',
     fontWeight: 600,
     fontSize: '0.9rem',
     cursor: 'pointer',
@@ -244,7 +250,11 @@ const styles = {
     width: '80px',
     height: '80px',
     borderRadius: '24px',
-    background: 'rgba(59, 130, 246, 0.1)',
+    background: 'linear-gradient(160deg, rgba(255,255,255,0.75), rgba(255,255,255,0.5))',
+    backdropFilter: 'blur(16px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+    border: '1px solid rgba(255,255,255,0.7)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85), 0 8px 24px -12px rgba(59,130,246,0.35)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -253,7 +263,7 @@ const styles = {
   emptyTitle: {
     fontSize: '1.25rem',
     fontWeight: 700,
-    color: '#f1f5f9',
+    color: '#0f172a',
     margin: '0 0 0.5rem',
   },
   emptyText: {
@@ -270,10 +280,10 @@ const styles = {
   },
   editInput: {
     padding: '0.35rem 0.6rem',
-    background: 'rgba(255, 255, 255, 0.08)',
+    background: 'rgba(255, 255, 255, 0.75)',
     border: '1px solid rgba(59, 130, 246, 0.4)',
     borderRadius: '8px',
-    color: '#f1f5f9',
+    color: '#0f172a',
     fontSize: '0.95rem',
     outline: 'none',
     fontFamily: 'inherit',
@@ -293,8 +303,10 @@ const styles = {
   confirmOverlay: {
     position: 'absolute',
     inset: 0,
-    background: 'rgba(15, 23, 42, 0.92)',
-    borderRadius: '16px',
+    background: 'rgba(255, 255, 255, 0.82)',
+    backdropFilter: 'blur(12px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(12px) saturate(160%)',
+    borderRadius: '18px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -305,7 +317,7 @@ const styles = {
   },
   confirmText: {
     fontSize: '0.9rem',
-    color: '#f1f5f9',
+    color: '#0f172a',
     fontWeight: 600,
     textAlign: 'center',
   },
@@ -690,7 +702,7 @@ export default function Vacations() {
                           <div style={styles.confirmActions}>
                             <motion.button
                               style={styles.btnSecondary}
-                              whileHover={{ background: 'rgba(255,255,255,0.1)' }}
+                              whileHover={{ background: 'rgba(15,23,42,0.08)' }}
                               whileTap={{ scale: 0.95 }}
                               onClick={() => setDeletingId(null)}
                               disabled={deleting}
@@ -731,7 +743,7 @@ export default function Vacations() {
                           <div style={styles.confirmActions}>
                             <motion.button
                               style={styles.btnSecondary}
-                              whileHover={{ background: 'rgba(255,255,255,0.1)' }}
+                              whileHover={{ background: 'rgba(15,23,42,0.08)' }}
                               whileTap={{ scale: 0.95 }}
                               onClick={() => setLeavingId(null)}
                               disabled={leaving}
@@ -812,12 +824,12 @@ export default function Vacations() {
                 const isOwner = uid === membersVac.userId;
                 const currentPerm = isOwner ? 3 : (membersVac.memberPermissions?.[uid] ?? 2);
                 return (
-                  <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0.65rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: isOwner ? 'linear-gradient(135deg, #3b82f6, #6366f1)' : 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, color: '#f1f5f9', flexShrink: 0 }}>
+                  <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0.65rem 0', borderBottom: '1px solid rgba(15,23,42,0.06)' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: isOwner ? 'linear-gradient(135deg, #3b82f6, #6366f1)' : 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, color: '#fff', flexShrink: 0 }}>
                       {(user?.username || uid).charAt(0).toUpperCase()}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, color: '#f1f5f9', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {user?.username || uid}
                         {isOwner && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: '#3b82f6', background: 'rgba(59,130,246,0.15)', borderRadius: 4, padding: '1px 5px' }}>Ersteller</span>}
                       </div>
@@ -828,7 +840,7 @@ export default function Vacations() {
                       <select
                         value={currentPerm}
                         onChange={e => handleSetPermission(membersVac, uid, parseInt(e.target.value))}
-                        style={{ padding: '5px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#f1f5f9', fontSize: 12, fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}
+                        style={{ padding: '5px 8px', borderRadius: 8, border: '1px solid rgba(15,23,42,0.12)', background: 'rgba(255,255,255,0.65)', color: '#0f172a', fontSize: 12, fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}
                       >
                         <option value={1}>Nur Sehen</option>
                         <option value={2}>Erstellen</option>
@@ -888,13 +900,13 @@ export default function Vacations() {
                   e.target.style.borderColor = 'rgba(59, 130, 246, 0.5)';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                  e.target.style.borderColor = 'rgba(15, 23, 42, 0.12)';
                 }}
               />
               <div style={styles.modalActions}>
                 <motion.button
                   style={styles.btnSecondary}
-                  whileHover={{ background: 'rgba(255,255,255,0.1)' }}
+                  whileHover={{ background: 'rgba(15,23,42,0.08)' }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => {
                     setShowCreateModal(false);
@@ -922,7 +934,7 @@ export default function Vacations() {
 
               {/* Divider */}
               <div style={{
-                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                borderTop: '1px solid rgba(15, 23, 42, 0.08)',
                 margin: '1.5rem 0',
               }} />
 
@@ -940,7 +952,7 @@ export default function Vacations() {
                   e.target.style.borderColor = 'rgba(59, 130, 246, 0.5)';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+                  e.target.style.borderColor = 'rgba(15, 23, 42, 0.12)';
                 }}
               />
               {joinError && (

@@ -26,9 +26,8 @@ L.Icon.Default.mergeOptions({
 const styles = {
   page: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
     fontFamily: "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif",
-    padding: '2rem 1rem 6rem',
+    padding: '1.5rem 1rem 6rem',
   },
   container: { maxWidth: '900px', margin: '0 auto' },
   header: { display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' },
@@ -36,21 +35,26 @@ const styles = {
     background: 'linear-gradient(135deg, #f59e0b, #ef4444)',
     borderRadius: '16px', width: '48px', height: '48px',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    boxShadow: '0 4px 16px rgba(245, 158, 11, 0.3)',
+    border: '1px solid rgba(255,255,255,0.5)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 6px 16px -6px rgba(245, 158, 11, 0.5)',
   },
-  title: { fontSize: '1.75rem', fontWeight: 700, color: '#f1f5f9', margin: 0, letterSpacing: '-0.02em' },
-  subtitle: { fontSize: '0.875rem', color: '#94a3b8', margin: 0 },
+  title: { fontSize: '1.75rem', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' },
+  subtitle: { fontSize: '0.875rem', color: '#64748b', margin: 0 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' },
   card: (completed) => ({
-    background: completed ? 'rgba(34, 197, 94, 0.08)' : 'rgba(255, 255, 255, 0.05)',
-    backdropFilter: 'blur(16px)', borderRadius: '16px',
-    border: completed ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
+    background: completed
+      ? 'linear-gradient(160deg, rgba(34,197,94,0.14), rgba(255,255,255,0.55))'
+      : 'linear-gradient(160deg, rgba(255,255,255,0.8), rgba(255,255,255,0.6))',
+    backdropFilter: 'blur(20px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+    borderRadius: '18px',
+    border: completed ? '1px solid rgba(34, 197, 94, 0.35)' : '1px solid rgba(255, 255, 255, 0.65)',
     padding: '1.25rem', position: 'relative', overflow: 'hidden',
-    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
-    opacity: completed ? 0.7 : 1,
+    boxShadow: '0 8px 24px -14px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255,255,255,0.85)',
+    opacity: completed ? 0.8 : 1,
   }),
-  cardTitle: { fontSize: '1.1rem', fontWeight: 600, color: '#f1f5f9', margin: '0 0 0.5rem' },
-  cardMeta: { display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.35rem' },
+  cardTitle: { fontSize: '1.1rem', fontWeight: 600, color: '#0f172a', margin: '0 0 0.5rem' },
+  cardMeta: { display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: '#64748b', marginBottom: '0.35rem' },
   badge: (color) => ({
     display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
     padding: '0.2rem 0.6rem', borderRadius: '99px', fontSize: '0.7rem', fontWeight: 600,
@@ -60,19 +64,21 @@ const styles = {
   iconBtn: (bg) => ({
     display: 'flex', alignItems: 'center', gap: '0.3rem',
     padding: '0.4rem 0.7rem', borderRadius: '10px', border: 'none',
-    background: bg || 'rgba(255,255,255,0.08)', color: '#e2e8f0',
+    background: bg || 'rgba(15,23,42,0.06)', color: '#334155',
     fontSize: '0.75rem', cursor: 'pointer', fontWeight: 500,
   }),
   addBtn: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-    width: '100%', padding: '1rem', borderRadius: '16px',
-    border: '2px dashed rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.03)',
-    color: '#94a3b8', fontSize: '0.95rem', fontWeight: 500, cursor: 'pointer',
+    width: '100%', padding: '1rem', borderRadius: '18px',
+    border: '2px dashed rgba(15,23,42,0.15)', background: 'rgba(255,255,255,0.45)',
+    backdropFilter: 'blur(12px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(12px) saturate(150%)',
+    color: '#64748b', fontSize: '0.95rem', fontWeight: 500, cursor: 'pointer',
     marginBottom: '1.5rem',
   },
   // Modal
   overlay: {
-    position: 'fixed', inset: 0, background: 'rgba(2,6,23,0.65)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+    position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
     display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
     zIndex: 2000,
     paddingTop: 'max(1rem, env(safe-area-inset-top))',
@@ -82,27 +88,27 @@ const styles = {
     overflowY: 'auto',
   },
   modal: {
-    background: 'linear-gradient(160deg, rgba(30,41,59,0.96), rgba(15,23,42,0.96))',
-    backdropFilter: 'blur(20px) saturate(160%)',
-    WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-    borderRadius: '20px',
-    border: '1px solid rgba(255,255,255,0.08)', width: '100%', maxWidth: '560px',
-    padding: '1.25rem 1.1rem 1.1rem', color: '#f1f5f9', position: 'relative',
-    boxShadow: '0 20px 60px -20px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06)',
+    background: 'linear-gradient(160deg, rgba(255,255,255,0.96), rgba(255,255,255,0.86))',
+    backdropFilter: 'blur(24px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+    borderRadius: '22px',
+    border: '1px solid rgba(255,255,255,0.7)', width: '100%', maxWidth: '560px',
+    padding: '1.25rem 1.1rem 1.1rem', color: '#0f172a', position: 'relative',
+    boxShadow: '0 24px 60px -20px rgba(15,23,42,0.35), inset 0 1px 0 rgba(255,255,255,0.9)',
   },
-  modalTitle: { fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.9rem', color: '#f8fafc', letterSpacing: '-0.01em' },
-  label: { fontSize: '0.72rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.05em' },
+  modalTitle: { fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.9rem', color: '#0f172a', letterSpacing: '-0.01em' },
+  label: { fontSize: '0.72rem', fontWeight: 600, color: '#64748b', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.05em' },
   input: {
     width: '100%', padding: '0.6rem 0.8rem', borderRadius: '10px',
-    border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)',
-    color: '#f1f5f9', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box',
+    border: '1px solid rgba(15,23,42,0.12)', background: 'rgba(255,255,255,0.65)',
+    color: '#0f172a', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box',
     minWidth: 0,
     lineHeight: 1.3,
   },
   textarea: {
     width: '100%', padding: '0.6rem 0.8rem', borderRadius: '10px',
-    border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.05)',
-    color: '#f1f5f9', fontSize: '0.9rem', outline: 'none', minHeight: '72px',
+    border: '1px solid rgba(15,23,42,0.12)', background: 'rgba(255,255,255,0.65)',
+    color: '#0f172a', fontSize: '0.9rem', outline: 'none', minHeight: '72px',
     resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box',
   },
   row: { display: 'flex', gap: '0.6rem', marginBottom: '0.6rem', flexWrap: 'wrap' },
@@ -111,27 +117,29 @@ const styles = {
     padding: '0.7rem 1.5rem', borderRadius: '12px', border: 'none',
     background: 'linear-gradient(135deg, #f59e0b, #ef4444)', color: '#fff',
     fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer', width: '100%',
+    boxShadow: '0 4px 14px -6px rgba(239,68,68,0.5)',
   },
   sectionLabel: {
-    fontSize: '0.95rem', fontWeight: 600, color: '#cbd5e1',
+    fontSize: '0.95rem', fontWeight: 600, color: '#475569',
     margin: '1rem 0 0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem',
   },
   archiveToggle: {
     display: 'flex', alignItems: 'center', gap: '0.5rem',
-    padding: '0.6rem 1rem', borderRadius: '12px', border: 'none',
-    background: 'rgba(255,255,255,0.06)', color: '#94a3b8',
+    padding: '0.6rem 1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.65)',
+    background: 'rgba(255,255,255,0.55)', color: '#64748b',
     fontSize: '0.85rem', cursor: 'pointer', fontWeight: 500,
     margin: '1.5rem 0 1rem',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8), 0 2px 8px -4px rgba(15,23,42,0.15)',
   },
   costRow: {
     display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem',
   },
   participantChip: (selected) => ({
-    padding: '0.35rem 0.75rem', borderRadius: '99px', border: 'none',
-    background: selected ? 'rgba(59, 130, 246, 0.3)' : 'rgba(255,255,255,0.08)',
-    color: selected ? '#93c5fd' : '#94a3b8', fontSize: '0.8rem',
+    padding: '0.35rem 0.75rem', borderRadius: '99px',
+    background: selected ? 'rgba(59, 130, 246, 0.16)' : 'rgba(15,23,42,0.05)',
+    color: selected ? '#2563eb' : '#64748b', fontSize: '0.8rem',
     cursor: 'pointer', fontWeight: selected ? 600 : 400,
-    border: selected ? '1px solid rgba(59, 130, 246, 0.5)' : '1px solid transparent',
+    border: selected ? '1px solid rgba(59, 130, 246, 0.45)' : '1px solid transparent',
   }),
   empty: {
     textAlign: 'center', color: '#64748b', padding: '3rem 1rem',
@@ -225,14 +233,14 @@ function MapPicker({ lat, lng, onLocationChange, address, onAddressChange }) {
         <button
           onClick={handleSearch}
           disabled={searching}
-          style={{ ...styles.iconBtn('rgba(59,130,246,0.3)'), padding: '0.5rem 0.8rem' }}
+          style={{ ...styles.iconBtn('rgba(59,130,246,0.15)'), padding: '0.5rem 0.8rem' }}
         >
           <Search size={16} /> {searching ? '...' : 'Suchen'}
         </button>
       </div>
       <div
         ref={mapRef}
-        style={{ width: '100%', height: '250px', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}
+        style={{ width: '100%', height: '250px', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(15,23,42,0.1)' }}
       />
       <p style={{ fontSize: '0.7rem', color: '#64748b', margin: '0.3rem 0 0' }}>
         Klicke auf die Karte um einen Pin zu setzen
@@ -291,13 +299,13 @@ function OverviewMap({ destinations, onSelect, onClose }) {
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ width: '100%', maxWidth: '800px', height: '85vh', display: 'flex', flexDirection: 'column', borderRadius: '20px', overflow: 'hidden', background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-          <span style={{ color: '#f1f5f9', fontWeight: 600, fontSize: '1rem' }}><Map size={16} style={{ marginRight: '0.4rem', verticalAlign: '-2px' }} />Alle Urlaubsziele</span>
+      <div style={{ width: '100%', maxWidth: '800px', height: '85vh', display: 'flex', flexDirection: 'column', borderRadius: '20px', overflow: 'hidden', background: 'linear-gradient(160deg, rgba(255,255,255,0.97), rgba(255,255,255,0.9))', backdropFilter: 'blur(24px) saturate(180%)', WebkitBackdropFilter: 'blur(24px) saturate(180%)', border: '1px solid rgba(255,255,255,0.7)', boxShadow: '0 24px 60px -20px rgba(15,23,42,0.35)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 1rem', borderBottom: '1px solid rgba(15,23,42,0.08)' }}>
+          <span style={{ color: '#0f172a', fontWeight: 600, fontSize: '1rem' }}><Map size={16} style={{ marginRight: '0.4rem', verticalAlign: '-2px' }} />Alle Urlaubsziele</span>
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f97316', display: 'inline-block' }} /> Geplant</span>
-            <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} /> Erledigt</span>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+            <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: '#f97316', display: 'inline-block' }} /> Geplant</span>
+            <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} /> Erledigt</span>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={20} /></button>
           </div>
         </div>
         <div ref={mapRef} style={{ flex: 1 }} />
@@ -305,12 +313,12 @@ function OverviewMap({ destinations, onSelect, onClose }) {
           {selected && (
             <motion.div
               initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
-              style={{ padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', background: 'rgba(15,23,42,0.95)' }}
+              style={{ padding: '1rem', borderTop: '1px solid rgba(15,23,42,0.08)', background: 'rgba(255,255,255,0.95)' }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}>
-                    <h4 style={{ margin: 0, color: '#f1f5f9', fontSize: '1rem' }}>{selected.title}</h4>
+                    <h4 style={{ margin: 0, color: '#0f172a', fontSize: '1rem' }}>{selected.title}</h4>
                     {selected.completed && <span style={styles.badge('#22c55e')}><Check size={10} /> Erledigt</span>}
                   </div>
                   {selected.date && <div style={{ ...styles.cardMeta, marginBottom: '0.2rem' }}><Calendar size={12} /> {selected.date}{selected.timeFrom && ` ${selected.timeFrom}`}{selected.timeTo && ` - ${selected.timeTo}`}</div>}
@@ -318,7 +326,7 @@ function OverviewMap({ destinations, onSelect, onClose }) {
                   {totalCost > 0 && <span style={styles.badge('#f59e0b')}><Euro size={10} /> {totalCost.toFixed(2).replace('.', ',')} EUR</span>}
                 </div>
                 <div style={{ display: 'flex', gap: '0.4rem' }}>
-                  <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn('rgba(59,130,246,0.2)')} onClick={() => { onClose(); onSelect(selected); }}>
+                  <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn('rgba(59,130,246,0.15)')} onClick={() => { onClose(); onSelect(selected); }}>
                     <Edit3 size={14} /> Öffnen
                   </motion.button>
                   <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer' }}><X size={16} /></button>
@@ -544,7 +552,7 @@ export default function Destinations() {
           </div>
           <motion.button
             whileTap={{ scale: 0.93 }}
-            style={{ ...styles.iconBtn('rgba(59,130,246,0.2)'), padding: '0.65rem 0.85rem', fontSize: '0.8rem' }}
+            style={{ ...styles.iconBtn('rgba(59,130,246,0.15)'), padding: '0.65rem 0.85rem', fontSize: '0.8rem' }}
             onClick={() => setShowOverviewMap(true)}
           >
             <Map size={18} /> Karte
@@ -554,7 +562,7 @@ export default function Destinations() {
         {/* Add Button */}
         <motion.button
           style={styles.addBtn}
-          whileHover={{ background: 'rgba(255,255,255,0.07)', borderColor: 'rgba(245,158,11,0.4)' }}
+          whileHover={{ background: 'rgba(255,255,255,0.75)', borderColor: 'rgba(245,158,11,0.5)' }}
           whileTap={{ scale: 0.98 }}
           onClick={openCreate}
         >
@@ -622,18 +630,18 @@ export default function Destinations() {
 
                   {/* Actions */}
                   <div style={styles.cardActions}>
-                    <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn('rgba(34,197,94,0.2)')} onClick={() => handleToggleComplete(dest)}>
+                    <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn('rgba(34,197,94,0.15)')} onClick={() => handleToggleComplete(dest)}>
                       <Check size={14} /> Erledigt
                     </motion.button>
                     <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn()} onClick={() => openEdit(dest)}>
                       <Edit3 size={14} /> Bearbeiten
                     </motion.button>
-                    <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn('rgba(59,130,246,0.2)')} onClick={() => downloadICS(dest, participants)}>
+                    <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn('rgba(59,130,246,0.15)')} onClick={() => downloadICS(dest, participants)}>
                       <Download size={14} /> Kalender
                     </motion.button>
                     {deleteConfirm === dest.id ? (
                       <>
-                        <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn('rgba(239,68,68,0.3)')} onClick={() => handleDelete(dest.id)}>
+                        <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn('rgba(239,68,68,0.2)')} onClick={() => handleDelete(dest.id)}>
                           <Check size={14} /> Ja
                         </motion.button>
                         <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn()} onClick={() => setDeleteConfirm(null)}>
@@ -697,18 +705,18 @@ export default function Destinations() {
                           {dest.address && <div style={styles.cardMeta}><MapPin size={13} /> {dest.address}</div>}
                           {totalCost > 0 && <span style={styles.badge('#f59e0b')}><Euro size={11} /> {totalCost.toFixed(2).replace('.', ',')} EUR</span>}
                           <div style={styles.cardActions}>
-                            <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn('rgba(59,130,246,0.2)')} onClick={() => handleToggleComplete(dest)}>
+                            <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn('rgba(59,130,246,0.15)')} onClick={() => handleToggleComplete(dest)}>
                               <RotateCcw size={14} /> Reaktivieren
                             </motion.button>
                             <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn()} onClick={() => openEdit(dest)}>
                               <Edit3 size={14} />
                             </motion.button>
-                            <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn('rgba(59,130,246,0.2)')} onClick={() => downloadICS(dest, participants)}>
+                            <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn('rgba(59,130,246,0.15)')} onClick={() => downloadICS(dest, participants)}>
                               <Download size={14} />
                             </motion.button>
                             {deleteConfirm === dest.id ? (
                               <>
-                                <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn('rgba(239,68,68,0.3)')} onClick={() => handleDelete(dest.id)}>
+                                <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn('rgba(239,68,68,0.2)')} onClick={() => handleDelete(dest.id)}>
                                   <Check size={14} /> Ja
                                 </motion.button>
                                 <motion.button whileTap={{ scale: 0.9 }} style={styles.iconBtn()} onClick={() => setDeleteConfirm(null)}>
@@ -861,7 +869,7 @@ export default function Destinations() {
                       )}
                     </div>
                   ))}
-                  <button style={{ ...styles.iconBtn('rgba(255,255,255,0.06)'), marginTop: '0.3rem' }} onClick={addCost}>
+                  <button style={{ ...styles.iconBtn('rgba(15,23,42,0.06)'), marginTop: '0.3rem' }} onClick={addCost}>
                     <Plus size={14} /> Weitere Kosten
                   </button>
                 </div>
@@ -879,7 +887,7 @@ export default function Destinations() {
 
                 {/* Error */}
                 {saveError && (
-                  <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '10px', padding: '0.6rem 0.85rem', color: '#fca5a5', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
+                  <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.35)', borderRadius: '10px', padding: '0.6rem 0.85rem', color: '#dc2626', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
                     {saveError}
                   </div>
                 )}
